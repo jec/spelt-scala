@@ -45,12 +45,13 @@ client-server spec.
     - [ ] 4.4 User-interactive authentication API
         - [ ] 4.4.4.7 Token-authenticated registration
             - [ ] `GET /_matrix/client/v1/register/m.login.registration_token/validity`
+        - [ ] 4.4.5 Fallback
+            - [ ] `GET /_matrix/client/v3/auth/{auth-type}/fallback/web?session={session ID}`
     - [ ] 4.5 Login
-        - [ ] 4.5.1 Appservice login
-            - [ ] `GET /_matrix/client/v3/login`
-            - [ ] `POST /_matrix/client/v3/login`
-            - [ ] `POST /_matrix/client/v3/logout`
-            - [ ] `POST /_matrix/client/v3/logout/all`
+        - [x] `GET /_matrix/client/v3/login`
+        - [ ] `POST /_matrix/client/v3/login`
+        - [ ] `POST /_matrix/client/v3/logout`
+        - [ ] `POST /_matrix/client/v3/logout/all`
     - [ ] 4.6 Account registration and management
         - [ ] `POST /_matrix/client/v3/account/deactivate`
         - [ ] `POST /_matrix/client/v3/account/password`
