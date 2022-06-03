@@ -14,7 +14,6 @@ class TokenSpec extends AnyWordSpecLike with Matchers {
       val (privateKey, publicKey) = Token.keyPair
       privateKey shouldBe a [RSAPrivateKey]
       publicKey shouldBe a [RSAPublicKey]
-      println(privateKey.toString)
     }
   }
 

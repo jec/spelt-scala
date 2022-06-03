@@ -17,9 +17,6 @@ class ConfigController extends ScalatraServlet with JacksonJsonSupport {
   }
 
   get("/.well-known/matrix/client") {
-    Ok(Map(
-      "m.homeserver" -> Map("base_url" -> Config.base.getString("server.base_url")),
-      "m.identity_server" -> Map("base_url" -> Config.base.getString("server.identity_server"))
-    ))
+    Ok(Config.wellKnown)
   }
 }

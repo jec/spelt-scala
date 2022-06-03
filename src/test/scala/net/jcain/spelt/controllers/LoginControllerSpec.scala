@@ -1,5 +1,6 @@
 package net.jcain.spelt.controllers
 
+import net.jcain.spelt.models.Config
 import org.json4s.{DefaultFormats, Formats}
 import org.json4s.jackson.JsonMethods
 import org.json4s.JsonDSL._
@@ -10,12 +11,10 @@ import org.scalatra.test.scalatest.ScalatraWordSpec
 class LoginControllerSpec extends ScalatraWordSpec {
   case class UrlSpec(base_url: String)
   case class WellKnown(`m.homeserver`: UrlSpec, `m.identity_server`: UrlSpec)
-  case class LoginResponse(
-                          access_token: String,
-                          device_id: String,
-                          user_id: String,
-                          well_known: WellKnown
-                          )
+  case class LoginResponse(access_token: String,
+                           device_id: String,
+                           user_id: String,
+                           well_known: WellKnown)
 
   addServlet(classOf[LoginController], "/_matrix/client/v3/*")
 
@@ -48,11 +47,11 @@ class LoginControllerSpec extends ScalatraWordSpec {
           status should equal (200)
 
           inside(JsonMethods.parse(body).extract[LoginResponse]) {
-            case LoginResponse(jwt, device_id, user_id, WellKnown(UrlSpec(home_url), UrlSpec(id_url))) =>
-              device_id should equal ("foo")
-              user_id should equal ("bar")
-              home_url should equal ("baz")
-              id_url should equal ("phred")
+            case LoginResponse(jwt, deviceId, userId, WellKnown(UrlSpec(homeUrl), UrlSpec(idUrl))) =>
+              deviceId shouldBe a [String]
+              userId should equal ("phredsmerd")
+              homeUrl should equal (Config.homeserverUrl)
+              idUrl should equal (Config.identityUrl)
           }
         }
       }

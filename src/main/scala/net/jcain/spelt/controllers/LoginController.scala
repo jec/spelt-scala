@@ -19,15 +19,12 @@ class LoginController extends ScalatraServlet with JacksonJsonSupport {
 
   post("/login") {
     Auth.logIn(parsedBody) match {
-      case Auth.Success(user) =>
+      case Auth.Success(userId, jwt, deviceId) =>
         Ok(Map(
-          "access_token" -> "foo",
-          "device_id" -> "baz",
-          "user_id" -> "bar",
-          "well_known" -> Map(
-            "m.homeserver" -> Map("base_url" -> Config.base.getString("server.base_url")),
-            "m.identity_server" -> Map("base_url" -> Config.base.getString("server.identity_server"))
-          )
+          "access_token" -> jwt,
+          "device_id" -> deviceId,
+          "user_id" -> userId,
+          "well_known" -> Config.wellKnown
         ))
 
       case Auth.Unauthenticated(message) =>

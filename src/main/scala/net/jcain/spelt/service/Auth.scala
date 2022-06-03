@@ -14,7 +14,7 @@ object Auth {
 
   // Login result classes
   sealed trait Result
-  case class Success(user: User) extends Result
+  case class Success(userId: String, jwt: String, deviceId: String) extends Result
   case class Unauthenticated(message: String) extends Result
   case class Failure(message: String) extends Result
 
@@ -27,14 +27,14 @@ object Auth {
     try {
       parsedParams.extract[PasswordRequest] match {
         case PasswordRequest(
-        device_id,
-        Identifier("m.id.user", user),
-        displayName,
-        password,
+        deviceIdOption,
+        Identifier("m.id.user", username),
+        _displayName,
+        _password,
         "m.login.password"
         ) =>
-          val deviceId = device_id.getOrElse(java.util.UUID.randomUUID().toString)
-          Success(User())
+          val deviceId = deviceIdOption.getOrElse(java.util.UUID.randomUUID().toString)
+          Success(username, "foo", deviceId)
 
         case _ =>
           Failure("Request was malformed")
