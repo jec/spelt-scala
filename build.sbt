@@ -11,6 +11,7 @@ lazy val spelt = (project in file("."))
     version := "0.1.0-SNAPSHOT",
     libraryDependencies ++= Seq(
       "ch.qos.logback" % "logback-classic" % "1.2.11" % "runtime",
+      "com.auth0" % "java-jwt" % "3.19.2",
       "com.typesafe" % "config" % "1.4.2",
       "com.typesafe.akka" %% "akka-actor" % AkkaVersion,
       "com.typesafe.akka" %% "akka-testkit" % AkkaVersion % Test,

@@ -58,3 +58,4 @@ project/metals.sbt
 
 # Application configuration files
 application.conf
+*.pk8

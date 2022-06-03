@@ -23,6 +23,17 @@ Spelt is implemented in [Scala](https://scala-lang.org/) using
 [Scalatra](https://www.scalatra.org/) as the web app framework and
 [Neo4j](https://neo4j.com/) as the database.
 
+## Setup
+
+In each of `src/main/resources/` and `src/test/resources/`:
+
+- Generate a keystore with an RSA private key.
+
+        openssl genpkey -outform der -algorithm rsa -out pkey.der
+        openssl pkcs8 -topk8 -inform der -outform der -in pkey.der -out pkey.pk8 -nocrypt
+
+- Copy `application.example.conf` to `application.conf` and update as needed.
+
 ## License
 
 Spelt is licensed under the three-clause BSD license. See LICENSE.txt.
