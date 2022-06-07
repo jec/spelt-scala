@@ -1,5 +1,7 @@
 # Spelt
 
+![Scala](https://github.com/jec/spelt-scala/actions/workflows/scala.yml/badge.svg)
+
 Matrix defines a set of open APIs for decentralized communication, suitable for
 securely publishing, persisting and subscribing to data over a global open
 federation of servers with no single point of control. Uses include Instant
