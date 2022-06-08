@@ -5,7 +5,7 @@ import org.scalatra.LifeCycle
 import javax.servlet.ServletContext
 
 class ScalatraBootstrap extends LifeCycle {
-  val system = ActorSystem()
+  private val system = ActorSystem()
 
   override def init(context: ServletContext): Unit = {
     context.mount(new ConfigController, "/*")

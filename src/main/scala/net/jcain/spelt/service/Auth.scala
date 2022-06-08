@@ -27,11 +27,11 @@ object Auth {
     try {
       parsedParams.extract[PasswordRequest] match {
         case PasswordRequest(
-        deviceIdOption,
-        Identifier("m.id.user", username),
-        _displayName,
-        _password,
-        "m.login.password"
+          deviceIdOption,
+          Identifier("m.id.user", username),
+          displayName,
+          password,
+          "m.login.password"
         ) =>
           val deviceId = deviceIdOption.getOrElse(java.util.UUID.randomUUID().toString)
           Success(username, "foo", deviceId)

@@ -25,6 +25,7 @@ object Token {
 
     (privateKey.asInstanceOf[RSAPrivateKey], publicKey.asInstanceOf[RSAPublicKey])
   }
+
   def generateAndSign(uuid: String): String = {
     val (privateKey, publicKey) = keyPair
     val algorithm = Algorithm.RSA256(publicKey, privateKey)

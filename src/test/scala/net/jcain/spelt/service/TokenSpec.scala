@@ -26,7 +26,7 @@ class TokenSpec extends AnyWordSpecLike with Matchers {
       // Verify and decode JWT.
       val (privateKey, publicKey) = Token.keyPair
       val algorithm = Algorithm.RSA256(publicKey, privateKey)
-      val verifier = JWT.require(algorithm).withIssuer(Config.jwtIssuer).build();
+      val verifier = JWT.require(algorithm).withIssuer(Config.jwtIssuer).build()
       val decodedJwt = verifier.verify(jwt)
 
       // Check payload.
