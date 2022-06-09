@@ -30,5 +30,7 @@ jobs:
         cd src/test/resources &&
           openssl genpkey -outform der -algorithm rsa -out pkey.der &&
           openssl pkcs8 -topk8 -inform der -outform der -in pkey.der -out pkey.pk8 -nocrypt
+    - name: Move CI conf file into place
+      run: mv src/test/resources/application.ci.conf src/test/resources/application.conf
     - name: Run tests
       run: sbt test
