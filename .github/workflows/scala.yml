@@ -12,7 +12,7 @@ permissions:
 jobs:
   unit_tests:
     runs-on: ubuntu-latest
-    container: java:17-jdk-jammy
+    container: eclipse-temurin:17-jdk-jammy
     services:
       neo4j:
         image: neo4j:community
