@@ -18,6 +18,11 @@ jobs:
         image: neo4j:community
         env:
           NEO4J_AUTH: none
+        options: >-
+          --health-cmd neo4j status
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
     - name: Check out repo
       uses: actions/checkout@v3
