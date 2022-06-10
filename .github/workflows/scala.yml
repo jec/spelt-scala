@@ -12,6 +12,7 @@ permissions:
 jobs:
   unit_tests:
     runs-on: ubuntu-latest
+    environment: ci
     services:
       neo4j:
         image: neo4j:community
@@ -35,6 +36,7 @@ jobs:
     - name: Run tests
       run: sbt clean coverage test
     - name: Log the value of the token
+      shell: bash
       run: echo "The value of REPO_TOKEN is $REPO_TOKEN"
       env:
         REPO_TOKEN: ${{ secrets.COVERALLS_TOKEN }}
