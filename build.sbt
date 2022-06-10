@@ -16,11 +16,13 @@ lazy val spelt = (project in file("."))
       "com.typesafe.akka" %% "akka-actor" % AkkaVersion,
       "com.typesafe.akka" %% "akka-testkit" % AkkaVersion % Test,
       "javax.servlet" % "javax.servlet-api" % "3.1.0" % "provided",
+      "org.bouncycastle" % "bcprov-jdk18on" % "1.71",
       "org.eclipse.jetty" % "jetty-webapp" % "9.4.35.v20201120" % "container;compile",
       "org.json4s" %% "json4s-jackson" % "4.0.5",
       "org.neo4j.driver" % "neo4j-java-driver" % "4.4.5",
       "org.scalatra" %% "scalatra" % ScalatraVersion,
       "org.scalatra" %% "scalatra-json" % "2.8.2",
       "org.scalatra" %% "scalatra-scalatest" % ScalatraVersion % Test,
+      "org.springframework.security" % "spring-security-crypto" % "5.7.1"
     )
   )

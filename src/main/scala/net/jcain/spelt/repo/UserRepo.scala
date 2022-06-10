@@ -1,6 +1,7 @@
 package net.jcain.spelt.repo
 
-import net.jcain.spelt.models.Database
+import net.jcain.spelt.models.{Database, User}
+import net.jcain.spelt.service.Auth
 import org.neo4j.driver.Values
 
 import java.util.UUID
@@ -23,16 +24,14 @@ object UserRepo {
               identifier: $identifier,
               encryptedPassword: $encryptedPassword,
               displayName: $displayName,
-              email: $email,
-              uuid: $uuid
-            }) RETURN u.uuid
+              email: $email
+            }) RETURN u.identifier
           """,
           Values.parameters(
             "identifier", identifier,
-            "encryptedPassword", password,
+            "encryptedPassword", Auth.hashPassword(password),
             "displayName", displayName,
-            "email", email,
-            "uuid", UUID.randomUUID.toString
+            "email", email
           )
         )
           .thenCompose(cursor => cursor.nextAsync)
@@ -65,6 +64,36 @@ object UserRepo {
     )
     val fut = FutureConverters.toScala(completionStage)
     val result = Await.result(fut, 1 minutes)
+
+    session.closeAsync
+    result
+  }
+
+  def getUser(identifier: String): Option[User] = {
+    val session = Database.getSession
+
+    val completionStage = session.readTransactionAsync(tx =>
+      tx.runAsync(
+        "MATCH (u:User) WHERE u.identifier = $identifier RETURN u",
+        Values.parameters("identifier", identifier)
+      )
+        .thenCompose(cursor => cursor.nextAsync)
+        .thenApply(
+          recordOrNull =>
+            Option(recordOrNull).map(record => record.get(0).asNode)
+        )
+    )
+    val fut = FutureConverters.toScala(completionStage)
+    val result = Await.result(fut, 1 minutes) match {
+      case None => None
+      case Some(node) =>
+        Some(User(
+          node.get("identifier").asString,
+          node.get("encryptedPassword").asString,
+          node.get("displayName").asString,
+          node.get("email").asString
+        ))
+    }
 
     session.closeAsync
     result
