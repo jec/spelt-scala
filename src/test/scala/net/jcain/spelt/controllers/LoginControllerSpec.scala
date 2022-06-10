@@ -29,7 +29,7 @@ class LoginControllerSpec extends ScalatraWordSpec {
 
   "POST /_matrix/client/v3/login" when {
     "credentials are valid" should {
-      "log in a user and return a JWT" in {
+      "log in the user and return a JWT" in {
         val identifier = render(
           ("type" -> "m.id.user") ~
           ("user" -> "phredsmerd")
