@@ -1,6 +1,7 @@
 # Spelt
 
 ![Scala](https://github.com/jec/spelt-scala/actions/workflows/scala.yml/badge.svg)
+[![Coverage Status](https://coveralls.io/repos/github/jec/spelt-scala/badge.svg?branch=master)](https://coveralls.io/github/jec/spelt-scala?branch=master)
 
 Matrix defines a set of open APIs for decentralized communication, suitable for
 securely publishing, persisting and subscribing to data over a global open
