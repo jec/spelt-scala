@@ -1,7 +1,9 @@
 package net.jcain.spelt.service
 
-import com.auth0.jwt.JWT
+import com.auth0.jwt.{JWT, JWTVerifier}
 import com.auth0.jwt.algorithms.Algorithm
+import com.auth0.jwt.exceptions.JWTVerificationException
+import com.auth0.jwt.interfaces.DecodedJWT
 import net.jcain.spelt.models.Config
 
 import java.nio.file.{Files, Path}
@@ -10,7 +12,7 @@ import java.security.KeyFactory
 import java.security.spec.{PKCS8EncodedKeySpec, RSAPublicKeySpec}
 
 object Token {
-  def keyPair: (RSAPrivateKey, RSAPublicKey) = {
+  val (privateKey, publicKey) = {
     // Load private key.
     val file = getClass.getResource("/pkey.pk8")
     val keyBytes = Files.readAllBytes(Path.of(file.toURI))
@@ -26,15 +28,26 @@ object Token {
     (privateKey.asInstanceOf[RSAPrivateKey], publicKey.asInstanceOf[RSAPublicKey])
   }
 
+  val algorithm: Algorithm = Algorithm.RSA256(publicKey, privateKey)
+
+  val verifier: JWTVerifier = JWT.require(algorithm)
+    .withIssuer(Config.jwtIssuer)
+    .build
+
   def generateAndSign(uuid: String): String = {
-    val (privateKey, publicKey) = keyPair
-    val algorithm = Algorithm.RSA256(publicKey, privateKey)
     val now = java.time.Instant.now
+
     JWT.create()
       .withIssuer(Config.jwtIssuer)
       .withSubject(uuid)
       .withIssuedAt(java.util.Date.from(now))
       .withExpiresAt(java.util.Date.from(now.plusSeconds(3600)))
       .sign(algorithm)
+  }
+
+  def verify(jwt: String): Either[Throwable, DecodedJWT] = try {
+    Right(verifier.verify(jwt))
+  } catch {
+    case error: JWTVerificationException => Left(error)
   }
 }
