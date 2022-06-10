@@ -2,11 +2,8 @@ package net.jcain.spelt.repo
 
 import net.jcain.spelt.models.User
 import net.jcain.spelt.support.DatabaseRollback
-import org.scalatest.Inside.inside
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
-
-import java.util.UUID
 
 class UserRepoSpec extends AnyWordSpecLike with Matchers with DatabaseRollback {
   "userExists()" when {

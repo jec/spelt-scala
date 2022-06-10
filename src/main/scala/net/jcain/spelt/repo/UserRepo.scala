@@ -3,8 +3,8 @@ package net.jcain.spelt.repo
 import net.jcain.spelt.models.{Database, User}
 import net.jcain.spelt.service.Auth
 import org.neo4j.driver.Values
+import org.neo4j.driver.types.Node
 
-import java.util.UUID
 import scala.compat.java8.FutureConverters
 import scala.concurrent._
 import scala.concurrent.duration._
@@ -83,7 +83,7 @@ object UserRepo {
             Option(recordOrNull).map(record => record.get(0).asNode)
         )
     )
-    val fut = FutureConverters.toScala(completionStage)
+    val fut: Future[Option[Node]] = FutureConverters.toScala(completionStage)
     val result = Await.result(fut, 1 minutes) match {
       case None => None
       case Some(node) =>

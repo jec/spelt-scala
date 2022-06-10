@@ -4,7 +4,7 @@ import net.jcain.spelt.models.Config
 import net.jcain.spelt.repo.UserRepo
 import net.jcain.spelt.support.DatabaseRollback
 import org.json4s.JsonDSL._
-import org.json4s.jackson.JsonMethods.{compact, render}
+import org.json4s.jackson.JsonMethods.render
 import org.scalatest.Inside.inside
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
