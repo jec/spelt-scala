@@ -35,11 +35,6 @@ jobs:
       run: mv src/test/resources/application.ci.conf src/test/resources/application.conf
     - name: Run tests
       run: sbt clean coverage test
-    - name: Log the value of the token
-      shell: bash
-      run: echo "The value of REPO_TOKEN is $REPO_TOKEN"
-      env:
-        REPO_TOKEN: ${{ secrets.COVERALLS_TOKEN }}
     - name: Upload coverage data to Coveralls
       run: sbt coverageReport coveralls
       env:

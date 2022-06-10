@@ -3,6 +3,8 @@ package net.jcain.spelt.service
 import net.jcain.spelt.models.User
 import org.json4s.{DefaultFormats, Formats, JValue}
 
+import java.util.UUID
+
 object Auth {
   // Request classes
   case class Identifier(`type`: String, user: String)
@@ -34,7 +36,7 @@ object Auth {
           "m.login.password"
         ) =>
           val deviceId = deviceIdOption.getOrElse(java.util.UUID.randomUUID().toString)
-          Success(username, "foo", deviceId)
+          Success(username, Token.generateAndSign(UUID.randomUUID.toString), deviceId)
 
         case _ =>
           Failure("Request was malformed")
