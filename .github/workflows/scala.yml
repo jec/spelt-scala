@@ -1,4 +1,4 @@
-name: sbt test
+name: test
 
 on:
   push:
@@ -33,4 +33,9 @@ jobs:
     - name: Move CI conf file into place
       run: mv src/test/resources/application.ci.conf src/test/resources/application.conf
     - name: Run tests
-      run: sbt test
+      run: sbt clean coverage test
+    - name: Upload coverage data to Coveralls
+      run: sbt coverageReport coveralls
+      env:
+        COVERALLS_REPO_TOKEN: ${{ secrets.COVERALLS_TOKEN }}
+        COVERALLS_FLAG_NAME: Scala ${{ matrix.scala }}
