@@ -2,6 +2,7 @@ package net.jcain.spelt.models
 
 import com.typesafe.config
 import com.typesafe.config.ConfigFactory
+import play.api.libs.json.{JsValue, Json}
 
 object Config {
   val base: config.Config = ConfigFactory.load()
@@ -12,8 +13,8 @@ object Config {
   val homeserverUrl: String = Config.base.getString("server.base_url")
   val identityUrl: String = Config.base.getString("server.identity_server")
 
-  val wellKnown: Map[String, Map[String, String]] = Map(
-    "m.homeserver" -> Map("base_url" -> homeserverUrl),
-    "m.identity_server" -> Map("base_url" -> identityUrl)
+  val wellKnown: JsValue = Json.obj(
+    "m.homeserver" -> Json.obj("base_url" -> homeserverUrl),
+    "m.identity_server" -> Json.obj("base_url" -> identityUrl)
   )
 }

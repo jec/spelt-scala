@@ -1,22 +1,27 @@
 package net.jcain.spelt.controllers
 
 import net.jcain.spelt.models.Config
-import org.json4s.{DefaultFormats, Formats}
-import org.scalatra.{Ok, ScalatraServlet}
-import org.scalatra.json.JacksonJsonSupport
+import play.api.mvc.{AnyContent, BaseController, ControllerComponents, Request}
 
-class ConfigController extends ScalatraServlet with JacksonJsonSupport {
-  protected implicit val jsonFormats: Formats = DefaultFormats
+import javax.inject.{Inject, Singleton}
 
-  before() {
-    contentType = formats("json")
-  }
-
-  get("/_matrix/client/versions") {
+@Singleton
+class ConfigController @Inject()(val controllerComponents: ControllerComponents) extends BaseController {
+  /**
+   * GET /_matrix/client/versions
+   *
+   * Returns an array of the supported Matrix versions
+   */
+  def versions() = Action { implicit request: Request[AnyContent] =>
     Ok(Map("versions" -> Config.versions))
   }
 
-  get("/.well-known/matrix/client") {
+  /**
+   * GET /.well-known/matrix/client
+   *
+   * Returns the "well-known" client information
+   */
+  def wellKnown() = Action { implicit request: Request[AnyContent] =>
     Ok(Config.wellKnown)
   }
 }
