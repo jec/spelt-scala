@@ -10,6 +10,7 @@ lazy val spelt = (project in file("."))
   .settings(
     name := "Spelt",
     version := "0.1.0-SNAPSHOT",
+    coverageExcludedPackages := ".*Reverse.*Controller;.*Routes;.*RoutesPrefix",
     libraryDependencies ++= Seq(
       guice,
       "ch.qos.logback" % "logback-classic" % "1.2.11" % "runtime",
