@@ -23,7 +23,7 @@ the relevant components of the specification:
   provides federation amongst servers (target version 1.2)
 
 Spelt is implemented in [Scala](https://scala-lang.org/) using
-[Scalatra](https://www.scalatra.org/) as the web app framework and
+[Play](https://www.playframework.com/) as the web app framework and
 [Neo4j](https://neo4j.com/) as the database.
 
 ## Setup

@@ -1,7 +1,8 @@
 package net.jcain.spelt.controllers
 
 import net.jcain.spelt.models.Config
-import play.api.mvc.{AnyContent, BaseController, ControllerComponents, Request}
+import play.api.libs.json.Json
+import play.api.mvc.{Action, AnyContent, BaseController, ControllerComponents, Request}
 
 import javax.inject.{Inject, Singleton}
 
@@ -12,8 +13,8 @@ class ConfigController @Inject()(val controllerComponents: ControllerComponents)
    *
    * Returns an array of the supported Matrix versions
    */
-  def versions() = Action { implicit request: Request[AnyContent] =>
-    Ok(Map("versions" -> Config.versions))
+  def versions(): Action[AnyContent] = Action { implicit request: Request[AnyContent] =>
+    Ok(Json.obj("versions" -> Config.versions))
   }
 
   /**
@@ -21,7 +22,7 @@ class ConfigController @Inject()(val controllerComponents: ControllerComponents)
    *
    * Returns the "well-known" client information
    */
-  def wellKnown() = Action { implicit request: Request[AnyContent] =>
+  def wellKnown(): Action[AnyContent] = Action { implicit request: Request[AnyContent] =>
     Ok(Config.wellKnown)
   }
 }
