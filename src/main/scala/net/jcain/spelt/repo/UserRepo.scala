@@ -1,59 +1,135 @@
 package net.jcain.spelt.repo
 
+import akka.actor.typed.{ActorRef, Behavior}
+import akka.actor.typed.scaladsl.Behaviors
 import net.jcain.spelt.models.{Database, User}
 import net.jcain.spelt.service.Auth
 import org.neo4j.driver.Values
 import org.neo4j.driver.types.Node
 
-import scala.compat.java8.FutureConverters
-import scala.concurrent._
-import scala.concurrent.duration._
 import scala.language.postfixOps
 
 object UserRepo {
-  def createUser(identifier: String, password: String, displayName: String, email: String): Either[Throwable, String] = {
-    if (userExists(identifier)) {
-      Left(new IllegalArgumentException(s"user $identifier already exists"))
-    } else {
-      val session = Database.getSession
+  sealed trait Request
+  sealed trait Response
 
-      val completionStage = session.writeTransactionAsync(tx => {
-        tx.runAsync(
-          """
-            CREATE (u:User {
-              identifier: $identifier,
-              encryptedPassword: $encryptedPassword,
-              displayName: $displayName,
-              email: $email
-            }) RETURN u.identifier
-          """,
-          Values.parameters(
-            "identifier", identifier,
-            "encryptedPassword", Auth.hashPassword(password),
-            "displayName", displayName,
-            "email", email
-          )
-        )
-          .thenCompose(cursor => cursor.nextAsync)
-          .thenApply(record => record.get(0).asString)
-      })
+  case class CreateUser(identifier: String, password: String, email: String, replyTo: ActorRef[Response]) extends Request
+  case class CreateUserResponse(result: Either[Throwable, String]) extends Response
 
-      val fut = FutureConverters.toScala(completionStage)
-      val result = Await.result(fut, 1 minutes)
+  case class GetUser(identifier: String, replyTo: ActorRef[Response]) extends Request
+  case class GetUserResponse(user: Option[User]) extends Response
 
-      session.closeAsync
-      Right(result)
-    }
+  case class UserInquiry(identifier: String, replyTo: ActorRef[Response]) extends Request
+  case class UserInquiryResponse(exists: Boolean) extends Response
+
+  /**
+   * Dispatches received messages
+   *
+   * @return Behaviors
+   */
+  def apply(): Behavior[Request] = Behaviors.receiveMessage {
+    case CreateUser(identifier, password, email, replyTo) =>
+      create(identifier, password, email, replyTo)
+      Behaviors.same
+
+    case GetUser(identifier, replyTo) =>
+      read(identifier, replyTo)
+      Behaviors.same
+
+    case UserInquiry(identifier, replyTo) =>
+      check(identifier, replyTo)
+      Behaviors.same
   }
 
-  def userExists(identifier: String): Boolean = {
+  /**
+   * Creates a user
+   *
+   * @param identifier local user name
+   * @param password password
+   * @param email email address
+   * @param replyTo Actor that receives response
+   */
+  private def create(identifier: String, password: String, email: String, replyTo: ActorRef[Response]): Unit = {
+      // TODO: Check for existing user.
+
+      val session = Database.getSession
+
+      session.writeTransactionAsync(tx => {
+        tx
+          .runAsync(
+            """
+              CREATE (u:User {
+                identifier: $identifier,
+                encryptedPassword: $encryptedPassword,
+                email: $email
+              }) RETURN u.identifier
+            """,
+            Values.parameters(
+              "identifier", identifier,
+              "encryptedPassword", Auth.hashPassword(password),
+              "email", email
+            )
+          )
+          .thenCompose(cursor => cursor.nextAsync)
+          .thenApply(record => record.get(0).asString)
+          .thenCompose(tx.commitAsync)
+          .thenApply(
+            identifier => {
+              session.closeAsync
+              replyTo ! CreateUserResponse(Right(identifier))
+            }
+          )
+      })
+  }
+
+  /**
+   * Looks up a user by `identifier` and responds with `Some(user)`; else  `None`
+   *
+   * @param identifier user name to look up
+   * @param replyTo Actor that receives response
+   */
+  private def read(identifier: String, replyTo: ActorRef[Response]): Unit = {
     val session = Database.getSession
 
-    val completionStage = session.readTransactionAsync(tx =>
-      tx.runAsync(
-        "MATCH (u:User) WHERE u.identifier = $identifier RETURN true",
-        Values.parameters("identifier", identifier)
-      )
+    session.readTransactionAsync(tx =>
+      tx
+        .runAsync(
+          "MATCH (u:User) WHERE u.identifier = $identifier RETURN u",
+          Values.parameters("identifier", identifier)
+        )
+        .thenCompose(cursor => cursor.nextAsync)
+        .thenApply(
+          recordOrNull =>
+            Option(recordOrNull).map(record => record.get(0).asNode)
+        )
+        .thenApply {
+          case None =>
+            replyTo ! GetUserResponse(None)
+          case Some(node: Node) =>
+            replyTo ! GetUserResponse(Some(User(
+              node.get("identifier").asString,
+              node.get("encryptedPassword").asString,
+              node.get("email").asString
+            )))
+        }
+    )
+  }
+
+  /**
+   * Looks up a user and sends a message to the requester indicating existence
+   *
+   * @param identifier user name to look up
+   * @param replyTo Actor that receives response
+   */
+  private def check(identifier: String, replyTo: ActorRef[Response]): Unit = {
+    val session = Database.getSession
+
+    session.readTransactionAsync(tx =>
+      tx
+        .runAsync(
+          "MATCH (u:User) WHERE u.identifier = $identifier RETURN true",
+          Values.parameters("identifier", identifier)
+        )
         .thenCompose(cursor => cursor.nextAsync)
         .thenApply(
           recordOrNull => Option(recordOrNull) match {
@@ -61,41 +137,12 @@ object UserRepo {
             case Some(record) => record.get(0).asBoolean(false)
           }
         )
-    )
-    val fut = FutureConverters.toScala(completionStage)
-    val result = Await.result(fut, 1 minutes)
-
-    session.closeAsync
-    result
-  }
-
-  def getUser(identifier: String): Option[User] = {
-    val session = Database.getSession
-
-    val completionStage = session.readTransactionAsync(tx =>
-      tx.runAsync(
-        "MATCH (u:User) WHERE u.identifier = $identifier RETURN u",
-        Values.parameters("identifier", identifier)
-      )
-        .thenCompose(cursor => cursor.nextAsync)
         .thenApply(
-          recordOrNull =>
-            Option(recordOrNull).map(record => record.get(0).asNode)
+          exists => {
+            session.closeAsync
+            replyTo ! UserInquiryResponse(exists)
+          }
         )
     )
-    val fut: Future[Option[Node]] = FutureConverters.toScala(completionStage)
-    val result = Await.result(fut, 1 minutes) match {
-      case None => None
-      case Some(node) =>
-        Some(User(
-          node.get("identifier").asString,
-          node.get("encryptedPassword").asString,
-          node.get("displayName").asString,
-          node.get("email").asString
-        ))
-    }
-
-    session.closeAsync
-    result
   }
 }
