@@ -39,14 +39,10 @@ jobs:
           openssl pkcs8 -topk8 -inform der -outform der -in pkey.der -out pkey.pk8 -nocrypt
     - name: Move CI conf file into place
       run: mv src/test/resources/application.ci.conf src/test/resources/application.conf
-    - name: Look at directory
-      run: pwd && ls -l
-    - name: Create indexes # TODO: Use Neo4j-Migrations.
-      run: /var/lib/neo4j/bin/cypher-shell "CREATE CONSTRAINT FOR (u:User) REQUIRE u.identifier IS UNIQUE"
     - name: Run tests
       run: sbt clean coverage test
     - name: Upload coverage data to Coveralls
       run: sbt coverageReport coveralls
       env:
         COVERALLS_REPO_TOKEN: ${{ secrets.COVERALLS_TOKEN }}
-        #COVERALLS_FLAG_NAME: Scala ${{ matrix.scala }}
+        COVERALLS_FLAG_NAME: Scala ${{ matrix.scala }}
