@@ -40,12 +40,11 @@ jobs:
     - name: Move CI conf file into place
       run: mv src/test/resources/application.ci.conf src/test/resources/application.conf
     - name: Write token to file
-      run: echo Token is $TOKEN and Name is $NAME > token.txt
+      run: echo -n "$TOKEN" | md5sum > hash.txt
       env:
         TOKEN: ${{ secrets.COVERALLS_TOKEN }}
-        NAME: Jimmy
-    - name: Read token from file
-      run: cat token.txt
+    - name: Read hash from file
+      run: cat hash.txt
     - name: Create indexes # TODO: Use Neo4j-Migrations.
       run: /var/lib/neo4j/bin/cypher-shell "CREATE CONSTRAINT FOR (u:User) REQUIRE u.identifier IS UNIQUE"
     - name: Run tests
