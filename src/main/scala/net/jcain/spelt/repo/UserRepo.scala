@@ -54,9 +54,9 @@ object UserRepo {
 
       val session = Database.getSession
 
-      session.writeTransactionAsync(tx => {
-        tx
-          .runAsync(
+      session
+        .writeTransactionAsync(
+          _.runAsync(
             """
               CREATE (u:User {
                 identifier: $identifier,
@@ -70,10 +70,10 @@ object UserRepo {
               "email", email
             )
           )
-          .thenCompose(cursor => cursor.nextAsync)
-          .thenApply(record => record.get(0).asString)
-      })
-        .thenApply(
+          .thenCompose(_.nextAsync)
+        )
+        .thenApply(_.get(0).asString)
+        .thenAccept(
           identifier => {
             session.closeAsync
             replyTo ! CreateUserResponse(Right(identifier))
@@ -90,19 +90,16 @@ object UserRepo {
   private def read(identifier: String, replyTo: ActorRef[Response]): Unit = {
     val session = Database.getSession
 
-    session.readTransactionAsync(tx =>
-      tx
-        .runAsync(
+    session
+      .readTransactionAsync(
+        _.runAsync(
           "MATCH (u:User) WHERE u.identifier = $identifier RETURN u",
           Values.parameters("identifier", identifier)
         )
-        .thenCompose(cursor => cursor.nextAsync)
-        .thenApply(
-          recordOrNull =>
-            Option(recordOrNull).map(record => record.get(0).asNode)
-        )
-    )
-      .thenApply {
+        .thenCompose(_.nextAsync)
+      )
+      .thenApply(Option(_).map(_.get(0).asNode))
+      .thenAccept {
         case None =>
           replyTo ! GetUserResponse(None)
         case Some(node: Node) =>
@@ -123,25 +120,23 @@ object UserRepo {
   private def check(identifier: String, replyTo: ActorRef[Response]): Unit = {
     val session = Database.getSession
 
-    session.readTransactionAsync(tx =>
-      tx
-        .runAsync(
+    session
+      .readTransactionAsync(
+        _.runAsync(
           "MATCH (u:User) WHERE u.identifier = $identifier RETURN true",
           Values.parameters("identifier", identifier)
         )
-        .thenCompose(cursor => cursor.nextAsync)
-        .thenApply(
-          recordOrNull => Option(recordOrNull) match {
-            case None => false
-            case Some(record) => record.get(0).asBoolean(false)
-          }
-        )
-        .thenApply(
-          exists => {
-            session.closeAsync
-            replyTo ! UserInquiryResponse(exists)
-          }
-        )
-    )
+        .thenCompose(_.nextAsync)
+      )
+      .thenApply(Option(_) match {
+        case None => false
+        case Some(record) => record.get(0).asBoolean(false)
+      })
+      .thenAccept(
+        exists => {
+          session.closeAsync
+          replyTo ! UserInquiryResponse(exists)
+        }
+      )
   }
 }
