@@ -1,6 +1,6 @@
 # Spelt
 
-![Scala](https://github.com/jec/spelt-scala/actions/workflows/scala.yml/badge.svg)
+[![test](https://github.com/jec/spelt-scala/actions/workflows/scala.yml/badge.svg)](https://github.com/jec/spelt-scala/actions/workflows/scala.yml)
 [![Coverage Status](https://coveralls.io/repos/github/jec/spelt-scala/badge.svg?branch=master)](https://coveralls.io/github/jec/spelt-scala?branch=master)
 
 Matrix defines a set of open APIs for decentralized communication, suitable for
@@ -32,8 +32,8 @@ In each of `src/main/resources/` and `src/test/resources/`:
 
 - Generate a keystore with an RSA private key.
 
-        openssl genpkey -outform der -algorithm rsa -out pkey.der
-        openssl pkcs8 -topk8 -inform der -outform der -in pkey.der -out pkey.pk8 -nocrypt
+      openssl genpkey -outform der -algorithm rsa -out pkey.der
+      openssl pkcs8 -topk8 -inform der -outform der -in pkey.der -out pkey.pk8 -nocrypt
 
 - Copy `application.example.conf` to `application.conf` and update as needed.
 

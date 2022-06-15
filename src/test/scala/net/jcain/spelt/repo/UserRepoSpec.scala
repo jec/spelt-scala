@@ -1,10 +1,18 @@
 package net.jcain.spelt.repo
 
+import akka.actor.testkit.typed.scaladsl.FishingOutcomes.complete
 import akka.actor.testkit.typed.scaladsl.ScalaTestWithActorTestKit
+import com.auth0.jwt.interfaces.DecodedJWT
 import net.jcain.spelt.models.User
+import net.jcain.spelt.service.Token
 import net.jcain.spelt.support.DatabaseRollback
+import org.scalatest.Inside.inside
+import org.scalatest.matchers.must.Matchers.convertToAnyMustWrapper
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
+
+import java.lang.Thread.sleep
+import scala.concurrent.duration.DurationInt
 
 class UserRepoSpec extends ScalaTestWithActorTestKit with AnyWordSpecLike with Matchers with DatabaseRollback {
   "CreateUser" when {
@@ -15,17 +23,25 @@ class UserRepoSpec extends ScalaTestWithActorTestKit with AnyWordSpecLike with M
 
         repo ! UserRepo.CreateUser("phred", "secret", "phred@example.com", probe.ref)
         probe.expectMessage(UserRepo.CreateUserResponse(Right("phred")))
-        println
       }
     }
 
     "user exists" should {
       "return an error" in {
-//        UserRepo.createUser("phred", "bar", "Phred", "phred@example.com")
-//
-//        UserRepo.createUser("phred", "bar", "Phred", "phred@example.com") should matchPattern {
-//          case Left(error) =>
-//        }
+        // Create a user.
+        val repo = testKit.spawn(UserRepo())
+        val probe0 = testKit.createTestProbe[UserRepo.Response]()
+
+        repo ! UserRepo.CreateUser("phred", "secret", "phred@example.com", probe0.ref)
+        probe0.expectMessage(UserRepo.CreateUserResponse(Right("phred")))
+
+        // Try it again an expect an error.
+        val probe1 = testKit.createTestProbe[UserRepo.Response]()
+
+        repo ! UserRepo.CreateUser("phred", "secret", "phred@example.com", probe1.ref)
+        probe1.expectMessageType[UserRepo.Response] must matchPattern {
+          case UserRepo.CreateUserResponse(Left(_)) =>
+        }
       }
     }
   }
@@ -53,7 +69,10 @@ class UserRepoSpec extends ScalaTestWithActorTestKit with AnyWordSpecLike with M
         // Check the response for GetUser.
         val getProbe = testKit.createTestProbe[UserRepo.Response]()
         repo ! UserRepo.GetUser("phred", getProbe.ref)
-        getProbe.expectMessage(UserRepo.GetUserResponse(Some(User("phred", "foo", "phred@example.com"))))
+        getProbe.fishForMessagePF(5.seconds) {
+          case UserRepo.GetUserResponse(Some(User("phred", _, "phred@example.com"))) =>
+            complete
+        }
       }
     }
   }
@@ -71,10 +90,14 @@ class UserRepoSpec extends ScalaTestWithActorTestKit with AnyWordSpecLike with M
 
     "user exists" should {
       "return true" in {
+        // Create a user.
         val repo = testKit.spawn(UserRepo())
+        val probe0 = testKit.createTestProbe[UserRepo.Response]()
 
-        //        UserRepo.createUser("phred", "bar", "Phred", "phred@example.com")
+        repo ! UserRepo.CreateUser("phred", "secret", "phred@example.com", probe0.ref)
+        probe0.expectMessage(UserRepo.CreateUserResponse(Right("phred")))
 
+        // Check the response for UserInquiry.
         val userExistsProbe = testKit.createTestProbe[UserRepo.Response]()
         repo ! UserRepo.UserInquiry("phred", userExistsProbe.ref)
         userExistsProbe.expectMessage(UserRepo.UserInquiryResponse(true))

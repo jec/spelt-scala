@@ -72,14 +72,13 @@ object UserRepo {
           )
           .thenCompose(cursor => cursor.nextAsync)
           .thenApply(record => record.get(0).asString)
-          .thenCompose(tx.commitAsync)
-          .thenApply(
-            identifier => {
-              session.closeAsync
-              replyTo ! CreateUserResponse(Right(identifier))
-            }
-          )
       })
+        .thenApply(
+          identifier => {
+            session.closeAsync
+            replyTo ! CreateUserResponse(Right(identifier))
+          }
+        )
   }
 
   /**
@@ -102,17 +101,17 @@ object UserRepo {
           recordOrNull =>
             Option(recordOrNull).map(record => record.get(0).asNode)
         )
-        .thenApply {
-          case None =>
-            replyTo ! GetUserResponse(None)
-          case Some(node: Node) =>
-            replyTo ! GetUserResponse(Some(User(
-              node.get("identifier").asString,
-              node.get("encryptedPassword").asString,
-              node.get("email").asString
-            )))
-        }
     )
+      .thenApply {
+        case None =>
+          replyTo ! GetUserResponse(None)
+        case Some(node: Node) =>
+          replyTo ! GetUserResponse(Some(User(
+            node.get("identifier").asString,
+            node.get("encryptedPassword").asString,
+            node.get("email").asString
+          )))
+      }
   }
 
   /**
