@@ -39,6 +39,12 @@ jobs:
           openssl pkcs8 -topk8 -inform der -outform der -in pkey.der -out pkey.pk8 -nocrypt
     - name: Move CI conf file into place
       run: mv src/test/resources/application.ci.conf src/test/resources/application.conf
+    - name: Write token to file
+      run: echo Token is $TOKEN > token.txt
+      env:
+        TOKEN: ${{ secrets.COVERALLS_TOKEN }}
+    - name: Create indexes # TODO: Use Neo4j-Migrations.
+      run: cypher-shell CREATE CONSTRAINT FOR (u:User) REQUIRE u.identifier IS UNIQUE
     - name: Run tests
       run: sbt clean coverage test
     - name: Upload coverage data to Coveralls
