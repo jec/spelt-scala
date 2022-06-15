@@ -73,12 +73,10 @@ object UserRepo {
           .thenCompose(_.nextAsync)
         )
         .thenApply(_.get(0).asString)
-        .thenAccept(
-          identifier => {
-            session.closeAsync
-            replyTo ! CreateUserResponse(Right(identifier))
-          }
-        )
+        .thenApply(identifier => Right[Throwable, String](identifier).asInstanceOf[Either[Throwable, String]])
+        .exceptionally(error => Left[Throwable, String](error).asInstanceOf[Either[Throwable, String]])
+        .thenAccept(either => replyTo ! CreateUserResponse(either))
+        .whenComplete((_, _) => session.closeAsync)
   }
 
   /**
@@ -109,6 +107,7 @@ object UserRepo {
             node.get("email").asString
           )))
       }
+      .whenComplete((_, _) => session.closeAsync)
   }
 
   /**
@@ -132,11 +131,7 @@ object UserRepo {
         case None => false
         case Some(record) => record.get(0).asBoolean(false)
       })
-      .thenAccept(
-        exists => {
-          session.closeAsync
-          replyTo ! UserInquiryResponse(exists)
-        }
-      )
+      .thenAccept(replyTo ! UserInquiryResponse(_))
+      .whenComplete((_, _) => session.closeAsync)
   }
 }
