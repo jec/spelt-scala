@@ -43,8 +43,10 @@ jobs:
       run: echo Token is $TOKEN > token.txt
       env:
         TOKEN: ${{ secrets.COVERALLS_TOKEN }}
+    - name: Read token from file
+      run: cat token.txt
     - name: Create indexes # TODO: Use Neo4j-Migrations.
-      run: cypher-shell CREATE CONSTRAINT FOR (u:User) REQUIRE u.identifier IS UNIQUE
+      run: cypher-shell "CREATE CONSTRAINT FOR (u:User) REQUIRE u.identifier IS UNIQUE"
     - name: Run tests
       run: sbt clean coverage test
     - name: Upload coverage data to Coveralls
