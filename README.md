@@ -1,6 +1,6 @@
 # Spelt
 
-[![test](https://github.com/jec/spelt-scala/actions/workflows/scala.yml/badge.svg)](https://github.com/jec/spelt-scala/actions/workflows/scala.yml)
+[![build & test](https://github.com/jec/spelt-scala/actions/workflows/build_and_test.yml/badge.svg)](https://github.com/jec/spelt-scala/actions/workflows/build_and_test.yml)
 [![Coverage Status](https://coveralls.io/repos/github/jec/spelt-scala/badge.svg?branch=master)](https://coveralls.io/github/jec/spelt-scala?branch=master)
 
 Matrix defines a set of open APIs for decentralized communication, suitable for
