@@ -1,0 +1,15 @@
+// Enterprise Edition only; as administrator
+CREATE DATABASE spelt.dev;
+CREATE DATABASE spelt.test;
+CREATE ROLE homeArchitect;
+GRANT ACCESS ON HOME DATABASE TO `homeArchitect`;
+GRANT CONSTRAINT MANAGEMENT ON HOME DATABASE TO `homeArchitect`;
+GRANT INDEX MANAGEMENT ON HOME DATABASE TO `homeArchitect`;
+GRANT MATCH {*} ON HOME GRAPH NODE * TO `homeArchitect`;
+GRANT MATCH {*} ON HOME GRAPH RELATIONSHIP * TO `homeArchitect`;
+GRANT NAME MANAGEMENT ON HOME DATABASE TO `homeArchitect`;
+GRANT WRITE ON HOME GRAPH TO `homeArchitect`;
+CREATE USER spelt_dev SET PASSWORD 'foo' CHANGE NOT REQUIRED SET HOME DATABASE spelt.dev;
+CREATE USER spelt_test SET PASSWORD 'foo' CHANGE NOT REQUIRED SET HOME DATABASE spelt.test;
+GRANT ROLE homeArchitect TO spelt_dev;
+GRANT ROLE homeArchitect TO spelt_test;
