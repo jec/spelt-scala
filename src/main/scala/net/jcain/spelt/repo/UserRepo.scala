@@ -25,11 +25,11 @@ object UserRepo {
   /**
    * Dispatches received messages
    *
-   * @return Behaviors
+   * @return the subsequent Behaviors
    */
   def apply(): Behavior[Request] = Behaviors.receiveMessage {
     case CreateUser(identifier, password, email, replyTo) =>
-      create(identifier, password, email, replyTo)
+      checkBeforeCreate(identifier, password, email, replyTo)
       Behaviors.same
 
     case GetUser(identifier, replyTo) =>
@@ -50,8 +50,6 @@ object UserRepo {
    * @param replyTo Actor that receives response
    */
   private def create(identifier: String, password: String, email: String, replyTo: ActorRef[Response]): Unit = {
-      // TODO: Check for existing user.
-
       val session = Database.getSession
 
       session
@@ -122,16 +120,51 @@ object UserRepo {
     session
       .readTransactionAsync(
         _.runAsync(
-          "MATCH (u:User) WHERE u.identifier = $identifier RETURN true",
+          "MATCH (u:User) WHERE u.identifier = $identifier RETURN count(u)",
           Values.parameters("identifier", identifier)
         )
         .thenCompose(_.nextAsync)
       )
       .thenApply(Option(_) match {
-        case None => false
-        case Some(record) => record.get(0).asBoolean(false)
+        // There should always be exactly 1 record, so this is overly
+        // defensive.
+        case None => 0
+        case Some(record) => record.get(0).asInt
       })
-      .thenAccept(replyTo ! UserInquiryResponse(_))
+      .thenAccept((x: Int) => replyTo ! UserInquiryResponse(x > 0))
+      .whenComplete((_, _) => session.closeAsync)
+  }
+
+  /**
+   * Looks up a user before calling create()
+   *
+   * @param identifier user name to look up
+   * @param password password
+   * @param email email address
+   * @param replyTo Actor that receives response
+   */
+  private def checkBeforeCreate(identifier: String, password: String, email: String, replyTo: ActorRef[Response]): Unit = {
+    val session = Database.getSession
+
+    session
+      .readTransactionAsync(
+        _.runAsync(
+          "MATCH (u:User) WHERE u.identifier = $identifier RETURN count(u)",
+          Values.parameters("identifier", identifier)
+        )
+        .thenCompose(_.nextAsync)
+      )
+      .thenApply(Option(_) match {
+        case None =>
+          // There should always be exactly 1 record, so this is overly
+          // defensive.
+          create(identifier,password, email, replyTo)
+        case Some(record) =>
+          if (record.get(0).asInt == 0)
+            create(identifier,password, email, replyTo)
+          else
+            replyTo ! CreateUserResponse(Left(new IllegalArgumentException(s"User \"$identifier\" already exists")))
+      })
       .whenComplete((_, _) => session.closeAsync)
   }
 }

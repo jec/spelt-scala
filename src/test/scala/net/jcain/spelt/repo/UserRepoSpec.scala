@@ -4,6 +4,7 @@ import akka.actor.testkit.typed.scaladsl.FishingOutcomes.complete
 import akka.actor.testkit.typed.scaladsl.ScalaTestWithActorTestKit
 import net.jcain.spelt.models.User
 import net.jcain.spelt.support.DatabaseRollback
+import org.scalatest.Inside.inside
 import org.scalatest.matchers.must.Matchers.convertToAnyMustWrapper
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
@@ -35,8 +36,9 @@ class UserRepoSpec extends ScalaTestWithActorTestKit with AnyWordSpecLike with M
         val probe1 = testKit.createTestProbe[UserRepo.Response]()
 
         repo ! UserRepo.CreateUser("phred", "secret", "phred@example.com", probe1.ref)
-        probe1.expectMessageType[UserRepo.Response] must matchPattern {
-          case UserRepo.CreateUserResponse(Left(_)) =>
+        inside(probe1.expectMessageType[UserRepo.Response]) {
+          case UserRepo.CreateUserResponse(Left(error)) =>
+            error.getMessage should equal ("User \"phred\" already exists")
         }
       }
     }
