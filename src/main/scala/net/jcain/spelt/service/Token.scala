@@ -40,8 +40,8 @@ object Token {
     JWT.create()
       .withIssuer(Config.jwtIssuer)
       .withSubject(uuid)
-      .withIssuedAt(java.util.Date.from(now))
-      .withExpiresAt(java.util.Date.from(now.plusSeconds(3600)))
+      .withIssuedAt(now)
+      .withExpiresAt(now.plusSeconds(3600))
       .sign(algorithm)
   }
 

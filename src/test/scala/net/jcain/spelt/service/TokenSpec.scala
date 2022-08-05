@@ -66,8 +66,8 @@ class TokenSpec extends AnyWordSpecLike with Matchers {
         val token = JWT.create()
           .withIssuer(Config.jwtIssuer)
           .withSubject("foo")
-          .withIssuedAt(java.util.Date.from(now.minusSeconds(3600)))
-          .withExpiresAt(java.util.Date.from(now.minusSeconds(1800)))
+          .withIssuedAt(now.minusSeconds(3600))
+          .withExpiresAt(now.minusSeconds(1800))
           .sign(Token.algorithm)
 
         inside(Token.verify(token)) {

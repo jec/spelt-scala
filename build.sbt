@@ -14,7 +14,7 @@ lazy val spelt = (project in file("."))
     libraryDependencies ++= Seq(
       guice,
       "ch.qos.logback" % "logback-classic" % "1.2.11" % "runtime",
-      "com.auth0" % "java-jwt" % "3.19.2",
+      "com.auth0" % "java-jwt" % "4.0.0",
       "org.bouncycastle" % "bcprov-jdk18on" % "1.71",
       "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.13.3",
       "com.typesafe.akka" %% "akka-actor-testkit-typed" % "2.6.19" % Test,
