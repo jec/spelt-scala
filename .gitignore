@@ -58,4 +58,5 @@ project/metals.sbt
 
 # Application configuration files
 application.conf
-*.pk8
+/src/*/resources/*.pk8
+/src/*/resources/*.der
