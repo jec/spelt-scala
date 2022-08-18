@@ -18,7 +18,7 @@ lazy val spelt = (project in file("."))
       "org.bouncycastle" % "bcprov-jdk18on" % "1.71",
       "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.13.3",
       "com.typesafe.akka" %% "akka-actor-testkit-typed" % "2.6.19" % Test,
-      "org.neo4j.driver" % "neo4j-java-driver" % "4.4.6",
+      "org.neo4j.driver" % "neo4j-java-driver" % "4.4.9",
       "org.scalatestplus.play" %% "scalatestplus-play" % "5.1.0" % Test,
       "org.springframework.security" % "spring-security-crypto" % "5.7.2"
     )
