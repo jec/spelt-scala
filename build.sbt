@@ -14,8 +14,8 @@ lazy val spelt = (project in file("."))
     version := "0.1.0-SNAPSHOT",
     coverageExcludedPackages := ".*Reverse.*Controller;.*Routes;.*RoutesPrefix",
     libraryDependencies ++= Seq(
-      "ch.qos.logback" % "logback-classic" % "1.2.11" % "runtime",
-      "com.auth0" % "java-jwt" % "4.0.0",
+      "ch.qos.logback" % "logback-classic" % "1.4.4" % "runtime",
+      "com.auth0" % "java-jwt" % "4.1.0",
       "org.bouncycastle" % "bcprov-jdk18on" % "1.72",
       "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.13.4",
       "com.google.inject" % "guice" % "5.1.0",
