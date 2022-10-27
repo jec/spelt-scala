@@ -44,7 +44,7 @@ jobs:
     - name: Fetch CodeClimate test reporter and run its before-build
       run: |
         echo -n "$CC_TEST_REPORTER_ID" | sha256sum | awk '{printf "Token SHA256 is %s\n", $1}'
-        curl -o cc-test-reporter https://codeclimate.com/downloads/test-reporter/test-reporter-latest-linux-amd64
+        curl -L https://codeclimate.com/downloads/test-reporter/test-reporter-latest-linux-amd64 > cc-test-reporter
         chmod +x cc-test-reporter
         ./cc-test-reporter before-build
     - name: Run tests
