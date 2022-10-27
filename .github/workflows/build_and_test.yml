@@ -43,7 +43,7 @@ jobs:
       run: sbt clean coverage test
     - name: Upload coverage data to Coveralls
       run: |
-        echo -n "$COVERALLS_REPO_TOKEN" | sha256sum | awk '{printf "Token hash is %s\n", $1}'
+        echo -n "$COVERALLS_REPO_TOKEN" | sha256sum | awk '{printf "Token SHA256 hash is %s\n", $1}'
         sbt 'eval java.util.HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256").digest("TLbYvmZrHFmSwoJSVZxgfGE2s3mudvkxZ".getBytes("UTF-8")))' coverageReport coveralls
       env:
         COVERALLS_REPO_TOKEN: ${{ secrets.COVERALLS_TOKEN }}
