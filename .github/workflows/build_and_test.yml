@@ -40,8 +40,8 @@ jobs:
     - name: Move CI conf file into place
       run: mv src/test/resources/application.ci.conf src/test/resources/application.conf
     - name: Run tests
-      run: sbt clean coverage test
-    - name: Upload coverage data to Coveralls
-      run: sbt coverageReport coveralls
+      run: sbt clean coverage test coverageReport
+    - name: Upload coverage data to Codecov
+      run: bash <(curl -s https://codecov.io/bash)
       env:
-        COVERALLS_REPO_TOKEN: ${{ secrets.COVERALLS_TOKEN }}
+        CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
