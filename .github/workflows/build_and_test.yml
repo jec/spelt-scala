@@ -43,8 +43,7 @@ jobs:
       run: sbt clean coverage test
     - name: Upload coverage data to Coveralls
       run: |
-        echo "Token is «$COVERALLS_REPO_TOKEN»" | tee > /tmp/token.txt &&
-          cat "/tmp/token.txt" &&
+        echo -n "$COVERALLS_REPO_TOKEN" | sha256sum
           sbt 'eval sys.env.getOrElse("COVERALLS_REPO_TOKEN", "").length' coverageReport coveralls
       env:
         COVERALLS_REPO_TOKEN: ${{ secrets.COVERALLS_TOKEN }}
