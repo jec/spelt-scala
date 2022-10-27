@@ -32,8 +32,17 @@ object SessionRepo {
    * @return subsequent Behaviors
    */
   def apply(): Behavior[Request] = Behaviors.receiveMessage {
-    case GetOrCreateSession(identifier, deviceId, deviceName, replyTo) =>
-      readByDevice(identifier, deviceId, deviceName, replyTo)
+    case GetOrCreateSession(identifier, deviceIdOption, deviceNameOption, replyTo) =>
+      deviceIdOption match {
+        // If deviceId isn't specified, create a new Session.
+        case None =>
+          createSession(identifier, deviceNameOption, replyTo)
+
+        // Else look up Session.
+        case Some(deviceId) =>
+          readByDevice(identifier, deviceId, deviceNameOption, replyTo)
+      }
+
       Behaviors.same
 
     case ValidateToken(token, replyTo) =>
@@ -41,45 +50,55 @@ object SessionRepo {
       Behaviors.same
   }
 
-  private def readByDevice(identifier: String, deviceId: Option[String], deviceName: Option[String], replyTo: ActorRef[Response]): Unit = {
-    deviceId match {
-      // If deviceId isn't specified, create a new Session.
-      case None =>
-        createSession(identifier, deviceName, replyTo)
+  /**
+   * Looks up Session by `identifier` and `deviceId`; if found then updates that Session with a new token; else creates
+   * a new Session
+   *
+   * @param identifier user name
+   * @param deviceId a pre-existing device ID
+   * @param deviceName an optional device name to use
+   * @param replyTo requesting Actor
+   */
+  private def readByDevice(identifier: String, deviceId: String, deviceName: Option[String], replyTo: ActorRef[Response]): Unit = {
+    val db = Database.getSession
 
-      // Else look up Session.
-      case Some(deviceId) =>
-        val db = Database.getSession
-
-        db
-          .readTransactionAsync(
-            _.runAsync(
-              """
-                MATCH (u:User)-[AUTHENTICATED_AS]->(s:Session)
-                WHERE u.identifier = $identifier
-                AND s.deviceId = $deviceId
-                RETURN s.uuid
-              """,
-              Values.parameters(
-                "identifier", identifier,
-                "deviceId", deviceId
-              )
-            )
-            .thenCompose(_.nextAsync)
+    db
+      .readTransactionAsync(
+        _.runAsync(
+          """
+            MATCH (u:User)-[AUTHENTICATED_AS]->(s:Session)
+            WHERE u.identifier = $identifier
+            AND s.deviceId = $deviceId
+            RETURN s.uuid
+          """,
+          Values.parameters(
+            "identifier", identifier,
+            "deviceId", deviceId
           )
-          .thenAccept(Option(_) match {
-            // If a matching Session is found, update it.
-            case Some(record) =>
-              updateSession(record.get(0).asString, replyTo)
+        )
+        .thenCompose(_.nextAsync)
+      )
+      .thenAccept(Option(_) match {
+        // If a matching Session is found, update it.
+        case Some(record) =>
+          updateSession(record.get(0).asString, replyTo)
 
-            // else create one.
-            case None =>
-              createSession(identifier, deviceName, replyTo)
-          })
-          .whenComplete((_, _) => db.closeAsync)
-    }
+        // else create one.
+        case None =>
+          createSession(identifier, deviceName, replyTo)
+      })
+      .whenComplete((_, _) => db.closeAsync)
   }
 
+  /**
+   * Creates a new Session with a new token and device ID
+   *
+   * On successful creation, it sends a SessionCreated message to the requesting Actor.
+   *
+   * @param identifier user name
+   * @param deviceName device name
+   * @param replyTo requesting Actor
+   */
   private def createSession(identifier: String, deviceName: Option[String], replyTo: ActorRef[Response]): Unit = {
     val db = Database.getSession
     val uuid = UUID.randomUUID.toString
@@ -116,6 +135,12 @@ object SessionRepo {
       .whenComplete((_, _) => db.closeAsync)
   }
 
+  /**
+   * Updates an existing Session with a new token and sends a SessionCreated message to the requesting Actor
+   *
+   * @param uuid Session UUID
+   * @param replyTo requesting Actor
+   */
   private def updateSession(uuid: String, replyTo: ActorRef[Response]): Unit = {
     val db = Database.getSession
     val token = Token.generateAndSign(uuid)
@@ -132,7 +157,7 @@ object SessionRepo {
               """,
           Values.parameters(
             "uuid", uuid,
-          "token", token
+            "token", token
           )
         )
         .thenCompose(_.nextAsync)
@@ -147,11 +172,10 @@ object SessionRepo {
   }
 
   /**
-   * Validates a token by decoding it and then looking up the Session it
-   * references
+   * Validates a token by decoding it and then looking up the Session it references
    *
    * @param token JWT to validate
-   * @param replyTo Actor that receives response
+   * @param replyTo requesting Actor
    */
   private def validateToken(token: String, replyTo: ActorRef[Response]): Unit = {
     Token.verify(token) match {

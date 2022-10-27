@@ -23,7 +23,7 @@ class SessionRepoSpec extends ScalaTestWithActorTestKit with AnyWordSpecLike wit
           case UserRepo.CreateUserResponse(Right(_)) =>
         }
 
-        // Create Session and check response.
+        // Send message and check response.
         val repo = testKit.spawn(SessionRepo())
         val probe = testKit.createTestProbe[SessionRepo.Response]()
 
@@ -39,6 +39,34 @@ class SessionRepoSpec extends ScalaTestWithActorTestKit with AnyWordSpecLike wit
 
             repo ! SessionRepo.ValidateToken(token, probe.ref)
             probe.expectMessage(SessionRepo.Valid)
+        }
+      }
+    }
+
+    "User has a previous session" should {
+      "respond with SessionCreated with the same device ID and a new token" in {
+        // Create User.
+        val userRepo = testKit.spawn(UserRepo())
+        val userProbe = testKit.createTestProbe[UserRepo.Response]()
+
+        userRepo ! UserRepo.CreateUser("phred", "secret", "phred@example.com", userProbe.ref)
+        userProbe.expectMessageType[UserRepo.Response] should matchPattern {
+          case UserRepo.CreateUserResponse(Right(_)) =>
+        }
+
+        // Send message to create Session.
+        val repo = testKit.spawn(SessionRepo())
+        val probe = testKit.createTestProbe[SessionRepo.Response]()
+        repo ! SessionRepo.GetOrCreateSession("phred", None, None, probe.ref)
+        val response = probe.expectMessageType[SessionRepo.SessionCreated]
+
+        // Send message again and check response.
+        repo ! SessionRepo.GetOrCreateSession("phred", Some(response.deviceId), None, probe.ref)
+
+        inside(probe.expectMessageType[SessionRepo.Response]) {
+          case SessionRepo.SessionCreated(token, deviceId) =>
+            token shouldEqual response.token
+            deviceId shouldEqual response.deviceId
         }
       }
     }
