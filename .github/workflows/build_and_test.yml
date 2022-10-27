@@ -44,6 +44,8 @@ jobs:
     - name: Upload coverage data to Codecov
       run: |
         echo -n "$CODECOV_TOKEN" | sha256sum | awk '{printf "Token SHA256 hash is %s\n", $1}'
-        bash <(curl -s https://uploader.codecov.io/latest/linux/codecov)
+        curl -Os https://uploader.codecov.io/latest/linux/codecov
+        chmod +x codecov
+        ./codecov
       env:
         CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
