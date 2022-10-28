@@ -9,17 +9,31 @@ import org.neo4j.driver.types.Node
 
 import scala.language.postfixOps
 
+/**
+ * An Actor that implements the CRUD operations for User nodes
+ *
+ * Messages it receives:
+ * * CreateUser -- create a User node
+ *   Responses:
+ *   * CreateUserResponse -- either the fully qualified user identifier or a Throwable
+ *
+ * * GetUser -- retrieve a User node
+ *   Responses:
+ *   * GetUserResponse -- either a User record or None
+ *
+ * * UserInquiry -- does a user identifier exist?
+ *   Responses:
+ *   * UserInquiryResponse -- contains a boolean indicating existence
+ */
 object UserRepo {
   sealed trait Request
-  sealed trait Response
-
   case class CreateUser(identifier: String, password: String, email: String, replyTo: ActorRef[Response]) extends Request
-  case class CreateUserResponse(result: Either[Throwable, String]) extends Response
-
   case class GetUser(identifier: String, replyTo: ActorRef[Response]) extends Request
-  case class GetUserResponse(user: Option[User]) extends Response
-
   case class UserInquiry(identifier: String, replyTo: ActorRef[Response]) extends Request
+
+  sealed trait Response
+  case class CreateUserResponse(result: Either[Throwable, String]) extends Response
+  case class GetUserResponse(user: Option[User]) extends Response
   case class UserInquiryResponse(exists: Boolean) extends Response
 
   /**

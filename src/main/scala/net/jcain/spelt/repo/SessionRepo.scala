@@ -9,6 +9,19 @@ import org.neo4j.driver.Values
 import java.util.UUID
 
 /**
+ * An Actor that implements the CRUD operations for Session nodes
+ *
+ * Messages it receives:
+ * * GetOrCreateSession -- gets (if `identifier` and `deviceId` are found) or creates a Session node
+ *   Responses:
+ *   * SessionCreated -- includes a JWT and a (possibly new) deviceId
+ *   * SessionFailed -- includes a Throwable
+ *
+ * * ValidateToken -- check whether a `token` references a valid Session node
+ *   Responses:
+ *   * Valid
+ *   * Invalid
+ *
  * Rules:
  *   - A new login request for the same user and device invalidates any
  *     previous token issued for that device.
@@ -16,13 +29,12 @@ import java.util.UUID
  */
 object SessionRepo {
   sealed trait Request
-  sealed trait Response
-
   case class GetOrCreateSession(identifier: String, deviceId: Option[String], deviceName: Option[String], replyTo: ActorRef[Response]) extends Request
+  case class ValidateToken(token: String, replyTo: ActorRef[Response]) extends Request
+
+  sealed trait Response
   case class SessionCreated(token: String, deviceId: String) extends Response
   case class SessionFailed(error: Throwable) extends Response
-
-  case class ValidateToken(token: String, replyTo: ActorRef[Response]) extends Request
   object Valid extends Response
   case class Invalid(error: Throwable) extends Response
 
@@ -55,8 +67,8 @@ object SessionRepo {
    * a new Session
    *
    * @param identifier user name
-   * @param deviceId a pre-existing device ID
-   * @param deviceName an optional device name to use
+   * @param deviceId a pre-existing device ID (optional)
+   * @param deviceName a device name to use (optional)
    * @param replyTo requesting Actor
    */
   private def readByDevice(identifier: String, deviceId: String, deviceName: Option[String], replyTo: ActorRef[Response]): Unit = {

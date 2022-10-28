@@ -40,7 +40,7 @@ class LoginControllerSpec extends PlaySpec with GuiceOneAppPerTest with Injectin
 
   "POST /_matrix/client/v3/login" when {
     "credentials are valid" should {
-      "log in the user and return a JWT" in {
+      "log in the user and return a 200 with a JWT" in {
         val identifier = Json.obj(
           "type" -> "m.id.user",
           "user" -> "phredsmerd"
@@ -63,6 +63,25 @@ class LoginControllerSpec extends PlaySpec with GuiceOneAppPerTest with Injectin
             homeUrl must equal (Config.homeserverUrl)
             idUrl must equal (Config.identityUrl)
         }
+      }
+    }
+
+    "credentials are invalid" should {
+      "return a 401" in {
+        val identifier = Json.obj(
+          "type" -> "m.id.user",
+          "user" -> "phredsmerd"
+        )
+
+        val payload = Json.obj(
+          "identifier" -> identifier,
+          "password" -> "wrong-password",
+          "type" -> "m.login.password"
+        )
+
+        val Some(response) = route(app, FakeRequest(POST, "/_matrix/client/v3/login").withBody(payload))
+
+        status(response) mustBe UNAUTHORIZED
       }
     }
   }

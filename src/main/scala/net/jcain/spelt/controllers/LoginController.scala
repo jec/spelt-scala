@@ -25,20 +25,21 @@ class LoginController @Inject()(val controllerComponents: ControllerComponents) 
    * requests
    */
   def create(): Action[AnyContent] = Action { implicit request: Request[AnyContent] =>
-    Auth.logIn(request.body.asJson.get) match {
-      case Auth.Success(userId, jwt, deviceId) =>
-        Ok(Json.obj(
-          "access_token" -> jwt,
-          "device_id" -> deviceId,
-          "user_id" -> userId,
-          "well_known" -> Config.wellKnown
-        ))
-
-      case Auth.Unauthenticated(message) =>
-        Unauthorized(Json.obj("error_message" -> message))
-
-      case Auth.Failure(message) =>
-        BadRequest(Json.obj("error_message" -> message))
-    }
+//    Auth.logIn(request.body.asJson.get) match {
+//      case Auth.Success(userId, jwt, deviceId) =>
+//        Ok(Json.obj(
+//          "access_token" -> jwt,
+//          "device_id" -> deviceId,
+//          "user_id" -> userId,
+//          "well_known" -> Config.wellKnown
+//        ))
+//
+//      case Auth.Unauthenticated(message) =>
+//        Unauthorized(Json.obj("error_message" -> message))
+//
+//      case Auth.Failure(message) =>
+//        BadRequest(Json.obj("error_message" -> message))
+//    }
+    BadRequest(Json.obj("error_message" -> "oops"))
   }
 }

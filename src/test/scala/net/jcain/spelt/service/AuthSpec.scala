@@ -1,48 +1,79 @@
 package net.jcain.spelt.service
 
-import net.jcain.spelt.models.Config
-import net.jcain.spelt.repo.UserRepo
+import akka.actor.testkit.typed.scaladsl.ScalaTestWithActorTestKit
+import net.jcain.spelt.models.{Config, User}
+import net.jcain.spelt.repo.{SessionRepo, UserRepo}
 import net.jcain.spelt.support.DatabaseRollback
 import org.scalatest.Inside.inside
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
-import play.api.libs.json.Json
+import play.api.libs.json.{JsObject, Json}
 
 import java.util.UUID
 
-trait ValidUser {
-  val userUuid = {
-
+class AuthSpec extends ScalaTestWithActorTestKit with AnyWordSpecLike with Matchers with DatabaseRollback {
+  trait ExistingUser {
+    val existingPassword = "open-sesame"
+    val existingUser: User = User("phredsmerd", Auth.hashPassword(existingPassword), "phredsmerd@example.com")
   }
-}
 
-class AuthSpec extends AnyWordSpecLike with Matchers with ValidUser with DatabaseRollback {
-  "logIn()" when {
+  trait LoginRequestParams extends ExistingUser {
+    val requestDeviceId: String = UUID.randomUUID.toString
+    val requestDeviceName = "iDevice 123 Max Pro Extreme"
+
+    val identifierJson: JsObject = Json.obj(
+      "type" -> "m.id.user",
+      "user" -> existingUser.identifier
+    )
+
+    val parsedParams: JsObject = Json.obj(
+      "identifier" -> identifierJson,
+      "password" -> existingPassword,
+      "type" -> "m.login.password",
+      "device_id" -> requestDeviceId,
+      "initial_device_display_name" -> requestDeviceName
+    )
+  }
+
+  "LogIn" when {
     "credentials are valid" should {
-      "return an Auth.Success" in {
-//        val Right(identifier) = UserRepo.createUser("phredsmerd", "bar", "Phred Smerd", "phredsmerd@example.com")
-//
-//        val identifierJson = Json.obj(
-//          "type" -> "m.id.user",
-//          "user" -> "phredsmerd"
-//        )
-//
-//        val parsedParams = Json.obj(
-//          "identifier" -> identifierJson,
-//          "password" -> "foobar",
-//          "type" -> "m.login.password"
-//        )
-//
-//        inside(Auth.logIn(parsedParams)) {
-//          case Auth.Success("phredsmerd", jwt, deviceId) =>
-//            UUID.fromString(deviceId) shouldBe a [UUID]
-//
-//            inside(Token.verify(jwt)) {
-//              case Right(decodedJwt) =>
-//                decodedJwt.getIssuer should equal (Config.jwtIssuer)
-//                // TODO: Token subject should indicate the Session.
-//            }
-//        }
+      "respond with Auth.Succeeded" in new LoginRequestParams {
+        private val userRepoProbe = testKit.createTestProbe[UserRepo.Request]()
+        private val sessionRepoProbe = testKit.createTestProbe[SessionRepo.Request]()
+        private val auth = testKit.spawn(Auth(userRepoProbe.ref, sessionRepoProbe.ref))
+
+        // Send LogIn message to Auth.
+        private val probe = testKit.createTestProbe[Auth.Response]()
+        auth ! Auth.LogIn(parsedParams, probe.ref)
+
+        // Expect UserRepo to receive GetUser; respond with CreateUserResponse.
+        inside(userRepoProbe.expectMessageType[UserRepo.Request]) {
+          case UserRepo.GetUser(username, replyTo) =>
+            username shouldEqual existingUser.identifier
+            replyTo ! UserRepo.GetUserResponse(Some(existingUser))
+        }
+
+        // Create a UUID and JWT that the SessionRepo would create upon success.
+        private val sessionUuid: String = UUID.randomUUID.toString
+        private val token = Token.generateAndSign(sessionUuid)
+
+        // Expect SessionRepo to receive GetOrCreateSession; respond with SessionCreated.
+        inside(sessionRepoProbe.expectMessageType[SessionRepo.Request]) {
+          case SessionRepo.GetOrCreateSession(username, deviceId, deviceName, replyTo) =>
+            username shouldEqual existingUser.identifier
+            deviceId shouldEqual Some(requestDeviceId)
+            deviceName shouldEqual Some(requestDeviceName)
+
+            replyTo ! SessionRepo.SessionCreated(token, deviceId.get)
+        }
+
+        // Expect Auth to respond with LoginSucceeded.
+        inside(probe.expectMessageType[Auth.Response]) {
+          case Auth.LoginSucceeded(username, receivedToken, deviceId) =>
+            username shouldEqual existingUser.identifier
+            receivedToken shouldEqual token
+            deviceId shouldEqual requestDeviceId
+        }
       }
     }
   }

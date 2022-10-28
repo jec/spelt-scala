@@ -34,6 +34,13 @@ object Token {
     .withIssuer(Config.jwtIssuer)
     .build
 
+  /**
+   * Generates a JWT for the Session `uuid`
+   *
+   * @param uuid Session UUID
+   *
+   * @return JWT for authentication
+   */
   def generateAndSign(uuid: String): String = {
     val now = java.time.Instant.now
 
@@ -45,8 +52,15 @@ object Token {
       .sign(algorithm)
   }
 
-  def verify(jwt: String): Either[Throwable, DecodedJWT] = try {
-    Right(verifier.verify(jwt))
+  /**
+   * Decodes a JWT
+   *
+   * @param token JWT
+   *
+   * @return either the payload of the JWT or a Throwable
+   */
+  def verify(token: String): Either[Throwable, DecodedJWT] = try {
+    Right(verifier.verify(token))
   } catch {
     case error: JWTVerificationException => Left(error)
   }

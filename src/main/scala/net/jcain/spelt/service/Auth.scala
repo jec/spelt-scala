@@ -1,74 +1,178 @@
 package net.jcain.spelt.service
 
+import akka.actor.typed.{ActorRef, Behavior}
+import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
+import akka.util.Timeout
 import net.jcain.spelt.models.User
+import net.jcain.spelt.repo.{SessionRepo, UserRepo}
 import org.springframework.security.crypto.argon2.Argon2PasswordEncoder
 import play.api.libs.functional.syntax.toFunctionalBuilderOps
 import play.api.libs.json._
 import play.api.libs.json.Reads._
 
-import java.util.UUID
+import scala.concurrent.duration.DurationInt
+import scala.util.{Failure, Success}
 
+/**
+ * An Actor that implements user authentication
+ *
+ * Messages it receives:
+ * * LogIn -- attempt to log in a user from a login HTTP request
+ *   Responses:
+ *   * LoginSucceeded
+ *   * LoginFailed
+ */
 object Auth {
-  // Request classes
+  // Actor messages
+  sealed trait Request
+  case class LogIn(parsedParams: JsValue, replyTo: ActorRef[Response]) extends Request
+  private case class UserFound(user: User, password: String, deviceIdOption: Option[String], deviceNameOption: Option[String], replyTo: ActorRef[Response]) extends Request
+  private case class UserNotFound(identifier: String, replyTo: ActorRef[Response]) extends Request
+  private case class OtherFailure(message: String, replyTo: ActorRef[Response]) extends Request
+  private case class SessionCreated(identifier: String, token: String, deviceId: String, replyTo: ActorRef[Response]) extends Request
+
+  sealed trait Response
+  case class LoginSucceeded(identifier: String, token: String, deviceId: String) extends Response
+  case class LoginFailed(message: String) extends Response
+
+  // JSON classes
   case class Identifier(`type`: String, user: String)
-  case class PasswordRequest(device_id: Option[String],
-                             identifier: Identifier,
-                             initial_device_display_name: Option[String],
-                             password: String,
-                             `type`: String)
+  case class PasswordLogin(device_id: Option[String],
+                           identifier: Identifier,
+                           initial_device_display_name: Option[String],
+                           password: String,
+                           `type`: String)
 
-  // Login result classes
-  sealed trait Result
-  case class Success(userId: String, jwt: String, deviceId: String) extends Result
-  case class Unauthenticated(message: String) extends Result
-  case class Failure(message: String) extends Result
-
-  case class MalformedRequestError(private val message: String = "",
-                                   private val cause: Throwable = None.orNull) extends Exception(message, cause)
-
+  // Read a JSON Identifier
   implicit val identifierReads: Reads[Identifier] = (
     (JsPath \ "type").read[String] and
       (JsPath \ "user").read[String]
   )(Identifier.apply _)
 
-  implicit val passwordRequestReads: Reads[PasswordRequest] = (
+  // Read JSON params for a PasswordLogin
+  implicit val passwordLoginReads: Reads[PasswordLogin] = (
     (JsPath \ "device_id").readNullable[String] and
       (JsPath \ "identifier").read[Identifier] and
       (JsPath \ "initial_device_display_name").readNullable[String] and
       (JsPath \ "password").read[String] and
       (JsPath \ "type").read[String]
-  )(PasswordRequest.apply _)
+  )(PasswordLogin.apply _)
 
   val argon2Encoder = new Argon2PasswordEncoder(8, 64, 4, 12, 3)
 
-  def logIn(parsedParams: JsValue): Result = {
-    try {
-      parsedParams.validate[PasswordRequest] match {
-        case JsSuccess(PasswordRequest(
-          deviceIdOption,
-          Identifier("m.id.user", username),
-          displayName,
-          password,
-          "m.login.password"
-        ), _) =>
-          val deviceId = deviceIdOption.getOrElse(java.util.UUID.randomUUID().toString)
-          Success(username, Token.generateAndSign(UUID.randomUUID.toString), deviceId)
+  /**
+   * Dispatches received messages
+   *
+   * @return the subsequent Behaviors
+   */
+  def apply(userRepo: ActorRef[UserRepo.Request], sessionRepo: ActorRef[SessionRepo.Request]): Behavior[Request] =
+    Behaviors.setup { context =>
+      Behaviors.receiveMessage {
+        case LogIn(parsedParams, replyTo) =>
+          requestUser(parsedParams, context, userRepo, replyTo)
+          Behaviors.same
 
-        case _ =>
-          Failure("Request was malformed")
+        case UserFound(user, password, deviceIdOption, deviceNameOption, replyTo) =>
+          requestSession(user, password, deviceIdOption, deviceNameOption, context, sessionRepo, replyTo)
+          Behaviors.same
+
+        case UserNotFound(_, replyTo) =>
+          replyTo ! LoginFailed("Username or password mismatch")
+          Behaviors.same
+
+        case SessionCreated(identifier, token, deviceId, replyTo) =>
+          replyTo ! LoginSucceeded(identifier, token, deviceId)
+          Behaviors.same
+
+        case OtherFailure(message, replyTo) =>
+          replyTo ! LoginFailed(message)
+          Behaviors.same
       }
-    } catch {
-        // TODO: no need for try/catch
-        case error: Throwable =>
-          Failure(error.toString)
     }
-  }
 
+  /**
+   * Returns a hashed version of the specified password
+   *
+   * @param password clear-text password
+   *
+   * @return hashed password
+   */
   def hashPassword(password: String): String = {
     argon2Encoder.encode(password)
   }
 
+  /**
+   * Checks whether the specified `plainPassword` hashes to the `encryptedPassword`
+   *
+   * @param encryptedPassword hashed password
+   * @param plainPassword clear-text password
+   *
+   * @return whether the passwords match
+   */
   def passwordMatches(encryptedPassword: String, plainPassword: String): Boolean = {
     argon2Encoder.matches(plainPassword, encryptedPassword)
+  }
+
+  /**
+   * Receives the payload of the HTTP login request and sends a message to the UserRepo to retrieve the User record
+   *
+   * @param parsedParams payload of HTTP login request
+   * @param context Actor context
+   * @param replyTo requesting Actor
+   */
+  private def requestUser(parsedParams: JsValue,
+                    context: ActorContext[Request],
+                    userRepo: ActorRef[UserRepo.Request],
+                    replyTo: ActorRef[Response]): Unit =
+    parsedParams.validate[PasswordLogin] match {
+      case JsSuccess(PasswordLogin(
+        deviceIdOption,
+        Identifier("m.id.user", username),
+        deviceNameOption,
+        password,
+        "m.login.password"
+      ), _) =>
+        implicit val timeout: Timeout = 3.seconds
+
+        // Ask UserRepo for the User and translate response to an Auth.Request.
+        context.ask(userRepo, ref => UserRepo.GetUser(username, ref)) {
+          case Success(UserRepo.GetUserResponse(Some(user))) => UserFound(user, password, deviceIdOption, deviceNameOption, replyTo)
+          case Success(UserRepo.GetUserResponse(None)) => UserNotFound(username, replyTo)
+          case Failure(error) => OtherFailure(error.getMessage, replyTo)
+        }
+
+      case _ =>
+        replyTo ! LoginFailed("Request was malformed")
+    }
+
+  /**
+   * Processes a successful response from the UserRepo and verifies the password
+   *
+   * If the password matches, a message is sent to the SessionRepo to create a Session. Else a failure message is sent
+   * to the original requesting Actor.
+   *
+   * @param user matching User record
+   * @param password password from the login request
+   * @param deviceNameOption initial device name
+   * @param replyTo requesting Actor
+   */
+  private def requestSession(user: User,
+                        password: String,
+                        deviceIdOption: Option[String],
+                        deviceNameOption: Option[String],
+                        context: ActorContext[Request],
+                        sessionRepo: ActorRef[SessionRepo.Request],
+                        replyTo: ActorRef[Response]): Unit = {
+    implicit val timeout: Timeout = 3.seconds
+
+    if (passwordMatches(user.encryptedPassword, password)) {
+      context.ask(sessionRepo, ref => SessionRepo.GetOrCreateSession(user.identifier, deviceIdOption, deviceNameOption, ref)) {
+        case Success(SessionRepo.SessionCreated(token, deviceId)) => SessionCreated(user.identifier, token, deviceId, replyTo)
+        case Success(SessionRepo.SessionFailed(error)) => OtherFailure(error.getMessage, replyTo)
+        case Failure(error) => OtherFailure(error.getMessage, replyTo)
+      }
+    } else {
+     replyTo ! LoginFailed("Username or password mismatch")
+    }
   }
 }
