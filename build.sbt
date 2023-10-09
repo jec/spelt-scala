@@ -1,10 +1,10 @@
-ThisBuild / scalaVersion := "2.13.8"
+ThisBuild / scalaVersion := "2.13.12"
 ThisBuild / organization := "net.jcain"
 
 // Tests involving the database cannot run concurrently.
 Test / parallelExecution := false
 
-val akkaVersion = "2.6.20"
+val akkaVersion = "2.6.21"
 
 lazy val spelt = (project in file("."))
   .enablePlugins(PlayScala)
