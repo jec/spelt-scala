@@ -14,18 +14,18 @@ lazy val spelt = (project in file("."))
     version := "0.1.0-SNAPSHOT",
     coverageExcludedPackages := ".*Reverse.*Controller;.*Routes;.*RoutesPrefix",
     libraryDependencies ++= Seq(
-      "ch.qos.logback" % "logback-classic" % "1.4.4" % "runtime",
-      "com.auth0" % "java-jwt" % "4.1.0",
+      "ch.qos.logback" % "logback-classic" % "1.4.7" % "runtime",
+      "com.auth0" % "java-jwt" % "4.3.0",
       "org.bouncycastle" % "bcprov-jdk18on" % "1.72",
-      "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.13.4",
+      "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.14.2",
       "com.google.inject" % "guice" % "5.1.0",
       "com.google.inject.extensions" % "guice-assistedinject" % "5.1.0",
       "com.typesafe.akka" %% "akka-actor-testkit-typed" % akkaVersion % Test,
       "com.typesafe.akka" %% "akka-protobuf-v3" % akkaVersion % Test,
       "com.typesafe.akka" %% "akka-serialization-jackson" % akkaVersion % Test,
       "com.typesafe.akka" %% "akka-stream" % akkaVersion % Test,
-      "org.neo4j.driver" % "neo4j-java-driver" % "5.1.0",
+      "org.neo4j.driver" % "neo4j-java-driver" % "5.6.0",
       "org.scalatestplus.play" %% "scalatestplus-play" % "5.1.0" % Test,
-      "org.springframework.security" % "spring-security-crypto" % "5.7.3"
+      "org.springframework.security" % "spring-security-crypto" % "6.0.2"
     )
   )
