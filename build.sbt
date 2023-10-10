@@ -8,12 +8,14 @@ val akkaVersion = "2.6.21"
 
 lazy val spelt = (project in file("."))
   .enablePlugins(PlayScala)
+  // Use the sbt default layout instead of Play's app/ layout.
   .disablePlugins(PlayLayoutPlugin)
   .settings(
     name := "Spelt",
     version := "0.1.0-SNAPSHOT",
     coverageExcludedPackages := ".*Reverse.*Controller;.*Routes;.*RoutesPrefix",
     libraryDependencies ++= Seq(
+      guice,
       "ch.qos.logback" % "logback-classic" % "1.4.7" % "runtime",
       "com.auth0" % "java-jwt" % "4.3.0",
       "org.bouncycastle" % "bcprov-jdk18on" % "1.72",
