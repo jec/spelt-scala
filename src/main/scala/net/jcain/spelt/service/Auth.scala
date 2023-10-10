@@ -25,15 +25,15 @@ import scala.util.{Failure, Success}
 object Auth {
   // Actor messages
   sealed trait Request
-  case class LogIn(parsedParams: JsValue, replyTo: ActorRef[Response]) extends Request
+  final case class LogIn(parsedParams: JsValue, replyTo: ActorRef[Response]) extends Request
   private case class UserFound(user: User, password: String, deviceIdOption: Option[String], deviceNameOption: Option[String], replyTo: ActorRef[Response]) extends Request
   private case class UserNotFound(identifier: String, replyTo: ActorRef[Response]) extends Request
   private case class OtherFailure(message: String, replyTo: ActorRef[Response]) extends Request
   private case class SessionCreated(identifier: String, token: String, deviceId: String, replyTo: ActorRef[Response]) extends Request
 
   sealed trait Response
-  case class LoginSucceeded(identifier: String, token: String, deviceId: String) extends Response
-  case class LoginFailed(message: String) extends Response
+  final case class LoginSucceeded(identifier: String, token: String, deviceId: String) extends Response
+  final case class LoginFailed(message: String) extends Response
 
   // JSON classes
   case class Identifier(`type`: String, user: String)

@@ -27,14 +27,14 @@ import scala.language.postfixOps
  */
 object UserRepo {
   sealed trait Request
-  case class CreateUser(identifier: String, password: String, email: String, replyTo: ActorRef[Response]) extends Request
-  case class GetUser(identifier: String, replyTo: ActorRef[Response]) extends Request
-  case class UserInquiry(identifier: String, replyTo: ActorRef[Response]) extends Request
+  final case class CreateUser(identifier: String, password: String, email: String, replyTo: ActorRef[Response]) extends Request
+  final case class GetUser(identifier: String, replyTo: ActorRef[Response]) extends Request
+  final case class UserInquiry(identifier: String, replyTo: ActorRef[Response]) extends Request
 
   sealed trait Response
-  case class CreateUserResponse(result: Either[Throwable, String]) extends Response
-  case class GetUserResponse(user: Option[User]) extends Response
-  case class UserInquiryResponse(exists: Boolean) extends Response
+  final case class CreateUserResponse(result: Either[Throwable, String]) extends Response
+  final case class GetUserResponse(user: Option[User]) extends Response
+  final case class UserInquiryResponse(exists: Boolean) extends Response
 
   /**
    * Dispatches received messages

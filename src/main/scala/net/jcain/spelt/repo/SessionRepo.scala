@@ -29,14 +29,14 @@ import java.util.UUID
  */
 object SessionRepo {
   sealed trait Request
-  case class GetOrCreateSession(identifier: String, deviceId: Option[String], deviceName: Option[String], replyTo: ActorRef[Response]) extends Request
-  case class ValidateToken(token: String, replyTo: ActorRef[Response]) extends Request
+  final case class GetOrCreateSession(identifier: String, deviceId: Option[String], deviceName: Option[String], replyTo: ActorRef[Response]) extends Request
+  final case class ValidateToken(token: String, replyTo: ActorRef[Response]) extends Request
 
   sealed trait Response
-  case class SessionCreated(token: String, deviceId: String) extends Response
-  case class SessionFailed(error: Throwable) extends Response
-  object Valid extends Response
-  case class Invalid(error: Throwable) extends Response
+  final case class SessionCreated(token: String, deviceId: String) extends Response
+  final case class SessionFailed(error: Throwable) extends Response
+  final object Valid extends Response
+  final case class Invalid(error: Throwable) extends Response
 
   /**
    * Dispatches received messages
