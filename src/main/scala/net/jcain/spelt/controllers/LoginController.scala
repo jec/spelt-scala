@@ -2,7 +2,7 @@ package net.jcain.spelt.controllers
 
 import net.jcain.spelt.models.Config
 import net.jcain.spelt.service.Auth
-import play.api.libs.json.Json
+import play.api.libs.json.{JsValue, Json}
 import play.api.mvc.{Action, AnyContent, BaseController, ControllerComponents, Request}
 
 import javax.inject.{Inject, Singleton}
@@ -14,7 +14,7 @@ class LoginController @Inject()(val controllerComponents: ControllerComponents) 
    *
    * Returns the supported login types
    */
-  def show(): Action[AnyContent] = Action { implicit request: Request[AnyContent] =>
+  def show(): Action[AnyContent] = Action {
     Ok(Json.obj("flows" -> Seq(Map("type" -> "m.login.password"))))
   }
 
@@ -24,7 +24,8 @@ class LoginController @Inject()(val controllerComponents: ControllerComponents) 
    * Creates a Session and returns a JWT for authenticating subsequent API
    * requests
    */
-  def create(): Action[AnyContent] = Action { implicit request: Request[AnyContent] =>
+  def create(): Action[JsValue] = Action(parse.json) { implicit request: Request[JsValue] =>
+//    auth ! Auth.LogIn(request.body.asJson.get, self.ref)
 //    Auth.logIn(request.body.asJson.get) match {
 //      case Auth.Success(userId, jwt, deviceId) =>
 //        Ok(Json.obj(
