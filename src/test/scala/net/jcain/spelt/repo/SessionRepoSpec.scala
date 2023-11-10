@@ -1,6 +1,6 @@
 package net.jcain.spelt.repo
 
-import akka.actor.testkit.typed.scaladsl.ScalaTestWithActorTestKit
+import org.apache.pekko.actor.testkit.typed.scaladsl.ScalaTestWithActorTestKit
 import net.jcain.spelt.models.Config
 import net.jcain.spelt.service.Token
 import net.jcain.spelt.support.DatabaseRollback

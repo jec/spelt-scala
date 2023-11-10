@@ -1,7 +1,7 @@
 package net.jcain.spelt.repo
 
-import akka.actor.typed.{ActorRef, Behavior}
-import akka.actor.typed.scaladsl.Behaviors
+import org.apache.pekko.actor.typed.{ActorRef, Behavior}
+import org.apache.pekko.actor.typed.scaladsl.Behaviors
 import net.jcain.spelt.models.Database
 import net.jcain.spelt.service.Token
 import org.neo4j.driver.Values

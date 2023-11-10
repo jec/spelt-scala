@@ -8,7 +8,7 @@
 # java specific
 *.class
 
-# akka specific
+# pekko specific
 logs/*
 
 # sbt specific

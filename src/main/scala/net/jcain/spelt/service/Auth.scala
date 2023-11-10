@@ -1,8 +1,8 @@
 package net.jcain.spelt.service
 
-import akka.actor.typed.{ActorRef, Behavior}
-import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
-import akka.util.Timeout
+import org.apache.pekko.actor.typed.{ActorRef, Behavior}
+import org.apache.pekko.actor.typed.scaladsl.{ActorContext, Behaviors}
+import org.apache.pekko.util.Timeout
 import net.jcain.spelt.models.User
 import net.jcain.spelt.repo.{SessionRepo, UserRepo}
 import org.springframework.security.crypto.argon2.Argon2PasswordEncoder

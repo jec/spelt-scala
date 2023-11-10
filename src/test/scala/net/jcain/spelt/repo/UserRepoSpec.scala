@@ -1,7 +1,7 @@
 package net.jcain.spelt.repo
 
-import akka.actor.testkit.typed.scaladsl.FishingOutcomes.complete
-import akka.actor.testkit.typed.scaladsl.ScalaTestWithActorTestKit
+import org.apache.pekko.actor.testkit.typed.scaladsl.FishingOutcomes.complete
+import org.apache.pekko.actor.testkit.typed.scaladsl.ScalaTestWithActorTestKit
 import net.jcain.spelt.models.User
 import net.jcain.spelt.support.DatabaseRollback
 import org.scalatest.Inside.inside
