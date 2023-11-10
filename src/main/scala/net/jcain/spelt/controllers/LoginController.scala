@@ -15,7 +15,7 @@ class LoginController @Inject()(val controllerComponents: ControllerComponents) 
    * Returns the supported login types
    */
   def show(): Action[AnyContent] = Action {
-    Ok(Json.obj("flows" -> Seq(Map("type" -> "m.login.password"))))
+    Ok(Json.obj("flows" -> Json.arr(Json.obj("type" -> "m.login.password"))))
   }
 
   /**

@@ -3,7 +3,7 @@ package net.jcain.spelt.support
 import net.jcain.spelt.models.Database
 import org.scalatest.{BeforeAndAfterEach, Suite}
 
-import scala.compat.java8.FutureConverters
+import scala.jdk.FutureConverters
 import scala.concurrent._
 import scala.concurrent.duration._
 import scala.language.postfixOps
@@ -23,11 +23,11 @@ trait DatabaseRollback extends BeforeAndAfterEach { this: Suite =>
     val session = Database.getSession
 
     Await.result(
-      FutureConverters.toScala(
+      FutureConverters.CompletionStageOps(
         session.writeTransactionAsync(tx => {
           tx.runAsync("MATCH (x) DETACH DELETE x")
         })
-      ),
+      ).asScala,
       5 minutes
     )
   }

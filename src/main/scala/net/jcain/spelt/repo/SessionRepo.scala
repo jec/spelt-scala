@@ -35,7 +35,7 @@ object SessionRepo {
   sealed trait Response
   final case class SessionCreated(token: String, deviceId: String) extends Response
   final case class SessionFailed(error: Throwable) extends Response
-  final object Valid extends Response
+  object Valid extends Response
   final case class Invalid(error: Throwable) extends Response
 
   /**

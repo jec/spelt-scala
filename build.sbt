@@ -1,4 +1,4 @@
-ThisBuild / scalaVersion := "2.13.12"
+ThisBuild / scalaVersion := "3.3.1"
 ThisBuild / organization := "net.jcain"
 
 // Tests involving the database cannot run concurrently.
@@ -30,7 +30,7 @@ lazy val spelt = (project in file("."))
       // Added the following to fix a Guice error. Without this, it was
       // using 2.8.1, which has an Akka dependency (should be Pekko).
       "org.playframework" %% "play-ahc-ws" % "3.0.0",
-      "org.scalatestplus.play" %% "scalatestplus-play" % "5.1.0" % Test,
+      "org.scalatestplus.play" %% "scalatestplus-play" % "7.0.0" % Test,
       "org.springframework.security" % "spring-security-crypto" % "6.0.2"
     )
   )
