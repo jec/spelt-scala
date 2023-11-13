@@ -72,34 +72,33 @@ object SessionRepo {
    * @param replyTo requesting Actor
    */
   private def readByDevice(identifier: String, deviceId: String, deviceName: Option[String], replyTo: ActorRef[Response]): Unit = {
-    val db = Database.getSession
+    val dbSession = Database.getSession
 
-    db
-      .executeReadAsync(
-        _.runAsync(
-          """
-            MATCH (u:User)-[AUTHENTICATED_AS]->(s:Session)
-            WHERE u.identifier = $identifier
-            AND s.deviceId = $deviceId
-            RETURN s.uuid
-          """,
-          Values.parameters(
-            "identifier", identifier,
-            "deviceId", deviceId
-          )
+    dbSession.executeReadAsync(
+      _.runAsync(
+        """
+          MATCH (u:User)-[AUTHENTICATED_AS]->(s:Session)
+          WHERE u.identifier = $identifier
+          AND s.deviceId = $deviceId
+          RETURN s.uuid
+        """,
+        Values.parameters(
+          "identifier", identifier,
+          "deviceId", deviceId
         )
-        .thenCompose(_.nextAsync)
       )
-      .thenAccept(Option(_) match {
-        // If a matching Session is found, update it.
-        case Some(record) =>
-          updateSession(record.get(0).asString, replyTo)
+      .thenCompose(_.nextAsync)
+    )
+    .thenAccept(Option(_) match {
+      // If a matching Session is found, update it.
+      case Some(record) =>
+        updateSession(record.get(0).asString, replyTo)
 
-        // else create one.
-        case None =>
-          createSession(identifier, deviceName, replyTo)
-      })
-      .whenComplete((_, _) => db.closeAsync)
+      // else create one.
+      case None =>
+        createSession(identifier, deviceName, replyTo)
+    })
+    .whenComplete((_, _) => dbSession.closeAsync)
   }
 
   /**
@@ -112,39 +111,38 @@ object SessionRepo {
    * @param replyTo requesting Actor
    */
   private def createSession(identifier: String, deviceName: Option[String], replyTo: ActorRef[Response]): Unit = {
-    val db = Database.getSession
+    val dbSession = Database.getSession
     val uuid = UUID.randomUUID.toString
     val deviceId = UUID.randomUUID.toString
     val token = Token.generateAndSign(uuid)
 
-    db
-      .executeWriteAsync(
-        _.runAsync(
-          """
-                MATCH (u:User)
-                WHERE u.identifier = $identifier
-                CREATE (u)-[:AUTHENTICATED_AS]->(s:Session {
-                  uuid: $uuid,
-                  deviceId: $deviceId,
-                  token: $token,
-                  deviceName: $deviceName
-                })
-                RETURN s.deviceId
-              """,
-          Values.parameters(
-            "identifier", identifier,
-            "uuid", uuid,
-            "deviceId", deviceId,
-            "token", token,
-            "deviceName", deviceName.getOrElse("")
-          )
+    dbSession.executeWriteAsync(
+      _.runAsync(
+    """
+          MATCH (u:User)
+          WHERE u.identifier = $identifier
+          CREATE (u)-[:AUTHENTICATED_AS]->(s:Session {
+            uuid: $uuid,
+            deviceId: $deviceId,
+            token: $token,
+            deviceName: $deviceName
+          })
+          RETURN s.deviceId
+        """,
+        Values.parameters(
+          "identifier", identifier,
+          "uuid", uuid,
+          "deviceId", deviceId,
+          "token", token,
+          "deviceName", deviceName.getOrElse("")
         )
-        .thenCompose(_.nextAsync)
       )
-      .thenApply(record => SessionCreated(token, record.get(0).asString).asInstanceOf[Response])
-      .exceptionally(error => SessionFailed(error).asInstanceOf[Response])
-      .thenAccept(replyTo ! _)
-      .whenComplete((_, _) => db.closeAsync)
+      .thenCompose(_.nextAsync)
+    )
+    .thenApply(record => SessionCreated(token, record.get(0).asString).asInstanceOf[Response])
+    .exceptionally(error => SessionFailed(error).asInstanceOf[Response])
+    .thenAccept(replyTo ! _)
+    .whenComplete((_, _) => dbSession.closeAsync)
   }
 
   /**
@@ -154,33 +152,32 @@ object SessionRepo {
    * @param replyTo requesting Actor
    */
   private def updateSession(uuid: String, replyTo: ActorRef[Response]): Unit = {
-    val db = Database.getSession
+    val dbSession = Database.getSession
     val token = Token.generateAndSign(uuid)
 
-    db
-      .executeWriteAsync(
-        _.runAsync(
-          """
-                MATCH (s:Session)
-                WHERE s.uuid = $uuid
-                WITH s
-                SET s.token = $token
-                RETURN s.deviceId
-              """,
-          Values.parameters(
-            "uuid", uuid,
-            "token", token
-          )
+    dbSession.executeWriteAsync(
+      _.runAsync(
+    """
+          MATCH (s:Session)
+          WHERE s.uuid = $uuid
+          WITH s
+          SET s.token = $token
+          RETURN s.deviceId
+        """,
+        Values.parameters(
+          "uuid", uuid,
+          "token", token
         )
-        .thenCompose(_.nextAsync)
       )
-      .thenAccept(Option(_) match {
-        case Some(record) =>
-          replyTo ! SessionCreated(token, record.get(0).asString)
-        case None =>
-          // TODO: Send something here.
-      })
-      .whenComplete((_, _) => db.closeAsync)
+      .thenCompose(_.nextAsync)
+    )
+    .thenAccept(Option(_) match {
+      case Some(record) =>
+        replyTo ! SessionCreated(token, record.get(0).asString)
+      case None =>
+        // TODO: Send something here.
+    })
+    .whenComplete((_, _) => dbSession.closeAsync)
   }
 
   /**
@@ -196,24 +193,23 @@ object SessionRepo {
 
       case Right(decodedJwt) =>
         val uuid = decodedJwt.getSubject
-        val db = Database.getSession
+        val dbSession = Database.getSession
 
         // Look up Session by Uuid
-        db
-          .executeReadAsync(
-            _.runAsync(
-              "MATCH (s:Session) WHERE s.uuid = $uuid RETURN count(s)",
-              Values.parameters("uuid", uuid)
-            )
-            .thenCompose(_.nextAsync)
+        dbSession.executeReadAsync(
+          _.runAsync(
+            "MATCH (s:Session) WHERE s.uuid = $uuid RETURN count(s)",
+            Values.parameters("uuid", uuid)
           )
-          .thenApply(record =>
-            if (record.get(0).asInt == 1)
-              replyTo ! Valid
-            else
-              replyTo ! Invalid(new RuntimeException("Subject invalid: Session not found"))
-          )
-          .whenComplete((_, _) => db.closeAsync)
+          .thenCompose(_.nextAsync)
+        )
+        .thenApply(record =>
+          if (record.get(0).asInt == 1)
+            replyTo ! Valid
+          else
+            replyTo ! Invalid(new RuntimeException("Subject invalid: Session not found"))
+        )
+        .whenComplete((_, _) => dbSession.closeAsync)
     }
   }
 }
