@@ -75,7 +75,7 @@ object SessionRepo {
     val db = Database.getSession
 
     db
-      .readTransactionAsync(
+      .executeReadAsync(
         _.runAsync(
           """
             MATCH (u:User)-[AUTHENTICATED_AS]->(s:Session)
@@ -118,7 +118,7 @@ object SessionRepo {
     val token = Token.generateAndSign(uuid)
 
     db
-      .writeTransactionAsync(
+      .executeWriteAsync(
         _.runAsync(
           """
                 MATCH (u:User)
@@ -158,7 +158,7 @@ object SessionRepo {
     val token = Token.generateAndSign(uuid)
 
     db
-      .writeTransactionAsync(
+      .executeWriteAsync(
         _.runAsync(
           """
                 MATCH (s:Session)
@@ -200,7 +200,7 @@ object SessionRepo {
 
         // Look up Session by Uuid
         db
-          .readTransactionAsync(
+          .executeReadAsync(
             _.runAsync(
               "MATCH (s:Session) WHERE s.uuid = $uuid RETURN count(s)",
               Values.parameters("uuid", uuid)

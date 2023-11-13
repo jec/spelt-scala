@@ -24,7 +24,7 @@ trait DatabaseRollback extends BeforeAndAfterEach { this: Suite =>
 
     Await.result(
       FutureConverters.CompletionStageOps(
-        session.writeTransactionAsync(tx => {
+        session.executeWriteAsync(tx => {
           tx.runAsync("MATCH (x) DETACH DELETE x")
         })
       ).asScala,

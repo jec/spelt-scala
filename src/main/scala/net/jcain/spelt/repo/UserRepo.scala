@@ -67,7 +67,7 @@ object UserRepo {
       val session = Database.getSession
 
       session
-        .writeTransactionAsync(
+        .executeWriteAsync(
           _.runAsync(
             """
               CREATE (u:User {
@@ -101,7 +101,7 @@ object UserRepo {
     val session = Database.getSession
 
     session
-      .readTransactionAsync(
+      .executeReadAsync(
         _.runAsync(
           "MATCH (u:User) WHERE u.identifier = $identifier RETURN u",
           Values.parameters("identifier", identifier)
@@ -132,7 +132,7 @@ object UserRepo {
     val session = Database.getSession
 
     session
-      .readTransactionAsync(
+      .executeReadAsync(
         _.runAsync(
           "MATCH (u:User) WHERE u.identifier = $identifier RETURN count(u)",
           Values.parameters("identifier", identifier)
@@ -161,7 +161,7 @@ object UserRepo {
     val session = Database.getSession
 
     session
-      .readTransactionAsync(
+      .executeReadAsync(
         _.runAsync(
           "MATCH (u:User) WHERE u.identifier = $identifier RETURN count(u)",
           Values.parameters("identifier", identifier)
