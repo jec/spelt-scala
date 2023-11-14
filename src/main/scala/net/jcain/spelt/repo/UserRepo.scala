@@ -7,7 +7,10 @@ import net.jcain.spelt.service.Auth
 import org.neo4j.driver.Values
 import org.neo4j.driver.types.Node
 
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.jdk.FutureConverters
 import scala.language.postfixOps
+import scala.util.{Failure, Success}
 
 /**
  * An Actor that implements the CRUD operations for User nodes
@@ -64,31 +67,36 @@ object UserRepo {
    * @param replyTo Actor that receives response
    */
   private def create(identifier: String, password: String, email: String, replyTo: ActorRef[Response]): Unit = {
-      val session = Database.getSession
+    val dbSession = Database.getSession
 
-      session
-        .executeWriteAsync(
-          _.runAsync(
-            """
-              CREATE (u:User {
-                identifier: $identifier,
-                encryptedPassword: $encryptedPassword,
-                email: $email
-              }) RETURN u.identifier
-            """,
-            Values.parameters(
-              "identifier", identifier,
-              "encryptedPassword", Auth.hashPassword(password),
-              "email", email
-            )
-          )
-          .thenCompose(_.nextAsync)
-        )
-        .thenApply(_.get(0).asString)
-        .thenApply(identifier => Right[Throwable, String](identifier).asInstanceOf[Either[Throwable, String]])
-        .exceptionally(error => Left[Throwable, String](error).asInstanceOf[Either[Throwable, String]])
-        .thenAccept(either => replyTo ! CreateUserResponse(either))
-        .whenComplete((_, _) => session.closeAsync)
+    val cypher = """
+      CREATE (u:User {
+        identifier: $identifier,
+        encryptedPassword: $encryptedPassword,
+        email: $email
+      }) RETURN u.identifier"""
+
+    val bindings = Values.parameters(
+      "identifier", identifier,
+      "encryptedPassword", Auth.hashPassword(password),
+      "email", email
+    )
+
+    FutureConverters
+      .CompletionStageOps(
+        dbSession
+          .executeWriteAsync(_.runAsync(cypher, bindings).thenCompose(_.singleAsync))
+          .thenApply(_.get(0).asString)
+      )
+      .asScala
+      .onComplete {
+        case Success(identifier) =>
+          replyTo ! CreateUserResponse(Right(identifier))
+          dbSession.closeAsync
+        case Failure(error) =>
+          replyTo ! CreateUserResponse(Left(error))
+          dbSession.closeAsync
+      }
   }
 
   /**
@@ -98,28 +106,34 @@ object UserRepo {
    * @param replyTo Actor that receives response
    */
   private def read(identifier: String, replyTo: ActorRef[Response]): Unit = {
-    val session = Database.getSession
+    val dbSession = Database.getSession
+    val cypher = "MATCH (u:User) WHERE u.identifier = $identifier RETURN u"
+    val bindings = Values.parameters("identifier", identifier)
 
-    session
-      .executeReadAsync(
-        _.runAsync(
-          "MATCH (u:User) WHERE u.identifier = $identifier RETURN u",
-          Values.parameters("identifier", identifier)
-        )
-        .thenCompose(_.nextAsync)
+    FutureConverters
+      .CompletionStageOps(
+        dbSession
+          .executeReadAsync(_.runAsync(cypher, bindings).thenCompose(_.nextAsync))
+          .thenApply(Option(_).map(_.get(0).asNode))
       )
-      .thenApply(Option(_).map(_.get(0).asNode))
-      .thenAccept {
-        case None =>
-          replyTo ! GetUserResponse(None)
-        case Some(node: Node) =>
+      .asScala
+      .onComplete {
+        case Success(Some(node: Node)) =>
           replyTo ! GetUserResponse(Some(User(
             node.get("identifier").asString,
             node.get("encryptedPassword").asString,
             node.get("email").asString
           )))
+          dbSession.closeAsync
+        case Success(None) =>
+          replyTo ! GetUserResponse(None)
+          dbSession.closeAsync
+        case Failure(error) =>
+          // TODO: Handle error.
+          println(s"Error2: $error")
+          replyTo ! GetUserResponse(None)
+          dbSession.closeAsync
       }
-      .whenComplete((_, _) => session.closeAsync)
   }
 
   /**
@@ -129,9 +143,9 @@ object UserRepo {
    * @param replyTo Actor that receives response
    */
   private def check(identifier: String, replyTo: ActorRef[Response]): Unit = {
-    val session = Database.getSession
+    val dbSession = Database.getSession
 
-    session
+    dbSession
       .executeReadAsync(
         _.runAsync(
           "MATCH (u:User) WHERE u.identifier = $identifier RETURN count(u)",
@@ -146,7 +160,7 @@ object UserRepo {
         case Some(record) => record.get(0).asInt
       })
       .thenAccept((x: Int) => replyTo ! UserInquiryResponse(x > 0))
-      .whenComplete((_, _) => session.closeAsync)
+      .whenComplete((_, _) => dbSession.closeAsync)
   }
 
   /**
@@ -158,9 +172,9 @@ object UserRepo {
    * @param replyTo Actor that receives response
    */
   private def checkBeforeCreate(identifier: String, password: String, email: String, replyTo: ActorRef[Response]): Unit = {
-    val session = Database.getSession
+    val dbSession = Database.getSession
 
-    session
+    dbSession
       .executeReadAsync(
         _.runAsync(
           "MATCH (u:User) WHERE u.identifier = $identifier RETURN count(u)",
@@ -179,6 +193,6 @@ object UserRepo {
           else
             replyTo ! CreateUserResponse(Left(new IllegalArgumentException(s"User \"$identifier\" already exists")))
       })
-      .whenComplete((_, _) => session.closeAsync)
+      .whenComplete((_, _) => dbSession.closeAsync)
   }
 }

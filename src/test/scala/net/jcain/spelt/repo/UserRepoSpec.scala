@@ -72,6 +72,12 @@ class UserRepoSpec extends ScalaTestWithActorTestKit with AnyWordSpecLike with M
         }
       }
     }
+
+    "when database query raises an exception" should {
+      "return None" in {
+        // TODO: Implement test.
+      }
+    }
   }
 
   "UserInquiry" when {
