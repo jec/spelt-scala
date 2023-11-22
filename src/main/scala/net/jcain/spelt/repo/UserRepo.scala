@@ -144,23 +144,24 @@ object UserRepo {
    */
   private def check(identifier: String, replyTo: ActorRef[Response]): Unit = {
     val dbSession = Database.getSession
+    val cypher = "MATCH (u:User) WHERE u.identifier = $identifier RETURN count(u)"
+    val bindings = Values.parameters("identifier", identifier)
 
-    dbSession
-      .executeReadAsync(
-        _.runAsync(
-          "MATCH (u:User) WHERE u.identifier = $identifier RETURN count(u)",
-          Values.parameters("identifier", identifier)
-        )
-        .thenCompose(_.nextAsync)
+    FutureConverters
+      .CompletionStageOps(
+        dbSession
+        .executeReadAsync(_.runAsync(cypher, bindings).thenCompose(_.singleAsync))
+        .thenApply(_.get(0).asInt)
       )
-      .thenApply(Option(_) match {
-        // There should always be exactly 1 record, so this is overly
-        // defensive.
-        case None => 0
-        case Some(record) => record.get(0).asInt
-      })
-      .thenAccept((x: Int) => replyTo ! UserInquiryResponse(x > 0))
-      .whenComplete((_, _) => dbSession.closeAsync)
+      .asScala
+      .onComplete {
+        case Success(count) =>
+          replyTo ! UserInquiryResponse(count > 0)
+          dbSession.closeAsync
+        case Failure(error) =>
+          // TODO: Handle error.
+          dbSession.closeAsync
+      }
   }
 
   /**
@@ -173,26 +174,26 @@ object UserRepo {
    */
   private def checkBeforeCreate(identifier: String, password: String, email: String, replyTo: ActorRef[Response]): Unit = {
     val dbSession = Database.getSession
+    val cypher = "MATCH (u:User) WHERE u.identifier = $identifier RETURN count(u)"
+    val bindings = Values.parameters("identifier", identifier)
 
-    dbSession
-      .executeReadAsync(
-        _.runAsync(
-          "MATCH (u:User) WHERE u.identifier = $identifier RETURN count(u)",
-          Values.parameters("identifier", identifier)
-        )
-        .thenCompose(_.nextAsync)
+    FutureConverters
+      .CompletionStageOps(
+        dbSession
+        .executeReadAsync(_.runAsync(cypher, bindings).thenCompose(_.singleAsync))
+        .thenApply(_.get(0).asInt)
       )
-      .thenApply(Option(_) match {
-        case None =>
-          // There should always be exactly 1 record, so this is overly
-          // defensive.
+      .asScala
+      .onComplete {
+        case Success(0) =>
           create(identifier,password, email, replyTo)
-        case Some(record) =>
-          if (record.get(0).asInt == 0)
-            create(identifier,password, email, replyTo)
-          else
-            replyTo ! CreateUserResponse(Left(new IllegalArgumentException(s"User \"$identifier\" already exists")))
-      })
-      .whenComplete((_, _) => dbSession.closeAsync)
+          dbSession.closeAsync
+        case Success(_) =>
+          replyTo ! CreateUserResponse(Left(new IllegalArgumentException(s"User \"$identifier\" already exists")))
+          dbSession.closeAsync
+        case Failure(error) =>
+          // TODO: Handle error.
+          dbSession.closeAsync
+      }
   }
 }
