@@ -33,6 +33,7 @@ jobs:
       uses: coursier/setup-action@v1
       with:
         jvm: temurin:21
+        apps: sbt sbtn
     - name: Create private key file used for JWT signing
       run: |
         cd src/test/resources &&
