@@ -1,4 +1,4 @@
-ThisBuild / scalaVersion := "3.3.1"
+ThisBuild / scalaVersion := "3.3.4"
 ThisBuild / organization := "net.jcain"
 
 // Tests involving the database cannot run concurrently.
