@@ -5,6 +5,7 @@ import org.apache.pekko.actor.typed.scaladsl.Behaviors
 import net.jcain.spelt.models.{Database, User}
 import net.jcain.spelt.service.Auth
 import org.neo4j.driver.Values
+import org.neo4j.driver.exceptions.NoSuchRecordException
 import org.neo4j.driver.types.Node
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -28,7 +29,7 @@ import scala.util.{Failure, Success}
  *   Responses:
  *   * UserInquiryResponse -- contains a boolean indicating existence
  */
-object UserRepo {
+object UserRepo:
   sealed trait Request
   final case class CreateUser(identifier: String, password: String, email: String, replyTo: ActorRef[Response]) extends Request
   final case class GetUser(identifier: String, replyTo: ActorRef[Response]) extends Request
@@ -44,7 +45,7 @@ object UserRepo {
    *
    * @return the subsequent Behaviors
    */
-  def apply(): Behavior[Request] = Behaviors.receiveMessage {
+  def apply(): Behavior[Request] = Behaviors.receiveMessage:
     case CreateUser(identifier, password, email, replyTo) =>
       checkBeforeCreate(identifier, password, email, replyTo)
       Behaviors.same
@@ -56,7 +57,6 @@ object UserRepo {
     case UserInquiry(identifier, replyTo) =>
       check(identifier, replyTo)
       Behaviors.same
-  }
 
   /**
    * Creates a user
@@ -66,7 +66,7 @@ object UserRepo {
    * @param email email address
    * @param replyTo Actor that receives response
    */
-  private def create(identifier: String, password: String, email: String, replyTo: ActorRef[Response]): Unit = {
+  private def create(identifier: String, password: String, email: String, replyTo: ActorRef[Response]): Unit =
     val dbSession = Database.getSession
 
     val cypher = """
@@ -89,15 +89,13 @@ object UserRepo {
           .thenApply(_.get(0).asString)
       )
       .asScala
-      .onComplete {
+      .onComplete:
         case Success(identifier) =>
           replyTo ! CreateUserResponse(Right(identifier))
           dbSession.closeAsync
         case Failure(error) =>
           replyTo ! CreateUserResponse(Left(error))
           dbSession.closeAsync
-      }
-  }
 
   /**
    * Looks up a user by `identifier` and responds with `Some(user)`; else  `None`
@@ -105,7 +103,7 @@ object UserRepo {
    * @param identifier user name to look up
    * @param replyTo Actor that receives response
    */
-  private def read(identifier: String, replyTo: ActorRef[Response]): Unit = {
+  private def read(identifier: String, replyTo: ActorRef[Response]): Unit =
     val dbSession = Database.getSession
     val cypher = "MATCH (u:User) WHERE u.identifier = $identifier RETURN u"
     val bindings = Values.parameters("identifier", identifier)
@@ -113,11 +111,30 @@ object UserRepo {
     FutureConverters
       .CompletionStageOps(
         dbSession
-          .executeReadAsync(_.runAsync(cypher, bindings).thenCompose(_.nextAsync))
+          .executeReadAsync(
+            _.runAsync(cypher, bindings)
+              .thenCompose(_.singleAsync)
+              .exceptionally(error =>
+                if error.isInstanceOf[NoSuchRecordException] then
+                  println(s"ErrorA: $error")
+                  null
+                else
+                  println(s"ErrorB: $error")
+                  null
+              )
+          )
           .thenApply(Option(_).map(_.get(0).asNode))
+          .exceptionally(error =>
+            if error.isInstanceOf[NoSuchRecordException] then
+              println(s"Error0: $error")
+              None
+            else
+              println(s"Error1: $error")
+              None
+          )
       )
       .asScala
-      .onComplete {
+      .onComplete:
         case Success(Some(node: Node)) =>
           replyTo ! GetUserResponse(Some(User(
             node.get("identifier").asString,
@@ -133,8 +150,7 @@ object UserRepo {
           println(s"Error2: $error")
           replyTo ! GetUserResponse(None)
           dbSession.closeAsync
-      }
-  }
+  end read
 
   /**
    * Looks up a user and sends a message to the requester indicating existence
@@ -142,7 +158,7 @@ object UserRepo {
    * @param identifier user name to look up
    * @param replyTo Actor that receives response
    */
-  private def check(identifier: String, replyTo: ActorRef[Response]): Unit = {
+  private def check(identifier: String, replyTo: ActorRef[Response]): Unit =
     val dbSession = Database.getSession
     val cypher = "MATCH (u:User) WHERE u.identifier = $identifier RETURN count(u)"
     val bindings = Values.parameters("identifier", identifier)
@@ -154,15 +170,13 @@ object UserRepo {
         .thenApply(_.get(0).asInt)
       )
       .asScala
-      .onComplete {
+      .onComplete:
         case Success(count) =>
           replyTo ! UserInquiryResponse(count > 0)
           dbSession.closeAsync
         case Failure(error) =>
           // TODO: Handle error.
           dbSession.closeAsync
-      }
-  }
 
   /**
    * Looks up a user before calling create()
@@ -172,7 +186,7 @@ object UserRepo {
    * @param email email address
    * @param replyTo Actor that receives response
    */
-  private def checkBeforeCreate(identifier: String, password: String, email: String, replyTo: ActorRef[Response]): Unit = {
+  private def checkBeforeCreate(identifier: String, password: String, email: String, replyTo: ActorRef[Response]): Unit =
     val dbSession = Database.getSession
     val cypher = "MATCH (u:User) WHERE u.identifier = $identifier RETURN count(u)"
     val bindings = Values.parameters("identifier", identifier)
@@ -184,7 +198,7 @@ object UserRepo {
         .thenApply(_.get(0).asInt)
       )
       .asScala
-      .onComplete {
+      .onComplete:
         case Success(0) =>
           create(identifier,password, email, replyTo)
           dbSession.closeAsync
@@ -194,6 +208,3 @@ object UserRepo {
         case Failure(error) =>
           // TODO: Handle error.
           dbSession.closeAsync
-      }
-  }
-}
