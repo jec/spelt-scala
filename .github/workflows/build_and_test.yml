@@ -32,7 +32,7 @@ jobs:
     - name: Set up Scala, SBT and JDK
       uses: coursier/setup-action@v1
       with:
-        jvm: adopt:21
+        jvm: temurin:21
     - name: Create private key file used for JWT signing
       run: |
         cd src/test/resources &&
