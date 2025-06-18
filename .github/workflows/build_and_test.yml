@@ -43,6 +43,12 @@ jobs:
       run: mv src/test/resources/application.ci.conf src/test/resources/application.conf
     - name: Run tests
       run: sbtn 'clean; coverage; test; coverageReport'
-    - uses: codecov/codecov-action@v5
+    - name: Output SHA of CODECOV_TOKEN
+      run: |
+        echo -n "$CODECOV_TOKEN" | sha256sum | awk '{printf "SHA256 of CODECOV_TOKEN is %s\n", $1}'
+      env:
+        CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v5
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
