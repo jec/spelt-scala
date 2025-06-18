@@ -12,5 +12,5 @@ object Database {
     GraphDatabase.driver(url, AuthTokens.basic(username, password))
   }
 
-  def getSession: AsyncSession = { db.asyncSession() }
+  def getSession: AsyncSession = { db.session(classOf[AsyncSession]) }
 }
