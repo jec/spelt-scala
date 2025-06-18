@@ -57,7 +57,7 @@ class LoginControllerSpec extends PlaySpec with GuiceOneAppPerTest with Injectin
 
   "GET /_matrix/client/v3/login" should {
     "return the available login types" in {
-      val Some(response) = route(app, FakeRequest(GET, "/_matrix/client/v3/login"))
+      val Some(response) = route(app, FakeRequest(GET, "/_matrix/client/v3/login")): @unchecked
 
       status(response) mustBe OK
       contentAsString(response) must equal ("{\"flows\":[{\"type\":\"m.login.password\"}]}")
@@ -69,7 +69,7 @@ class LoginControllerSpec extends PlaySpec with GuiceOneAppPerTest with Injectin
       "log in the user and return a 200 with a JWT" in new LoginRequestParams {
         pending // TODO: Implement POST.
 
-        val Some(response) = route(app, FakeRequest(POST, "/_matrix/client/v3/login").withBody(parsedParams))
+        val Some(response) = route(app, FakeRequest(POST, "/_matrix/client/v3/login").withBody(parsedParams)): @unchecked
 
         status(response) mustBe OK
 
@@ -98,7 +98,7 @@ class LoginControllerSpec extends PlaySpec with GuiceOneAppPerTest with Injectin
           "type" -> "m.login.password"
         )
 
-        val Some(response) = route(app, FakeRequest(POST, "/_matrix/client/v3/login").withBody(payload))
+        val Some(response) = route(app, FakeRequest(POST, "/_matrix/client/v3/login").withBody(payload)): @unchecked
 
         status(response) mustBe UNAUTHORIZED
       }
