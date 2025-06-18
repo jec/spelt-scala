@@ -10,7 +10,7 @@ import play.api.test.Helpers._
 class ConfigControllerSpec extends PlaySpec with GuiceOneAppPerTest with Injecting {
   "GET /_matrix/client/versions" should {
     "return the versions JSON" in {
-      val Some(response) = route(app, FakeRequest(GET, "/_matrix/client/versions"))
+      val Some(response) = route(app, FakeRequest(GET, "/_matrix/client/versions")): @unchecked
 
       status(response) mustBe OK
 
@@ -22,7 +22,7 @@ class ConfigControllerSpec extends PlaySpec with GuiceOneAppPerTest with Injecti
 
   "GET /.well-known/matrix/client" should {
     "return the homeserver and identity server URLs" in {
-      val Some(response) = route(app, FakeRequest(GET, "/.well-known/matrix/client"))
+      val Some(response) = route(app, FakeRequest(GET, "/.well-known/matrix/client")): @unchecked
 
       status(response) mustBe OK
 

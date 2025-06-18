@@ -138,6 +138,7 @@ object Auth {
         context.ask(userRepo, ref => UserRepo.GetUser(username, ref)) {
           case Success(UserRepo.GetUserResponse(Some(user))) => UserFound(user, password, deviceIdOption, deviceNameOption, replyTo)
           case Success(UserRepo.GetUserResponse(None)) => UserNotFound(username, replyTo)
+          case Success(_) => OtherFailure("unreachable", replyTo)
           case Failure(error) => OtherFailure(error.getMessage, replyTo)
         }
 
@@ -169,6 +170,7 @@ object Auth {
       context.ask(sessionRepo, ref => SessionRepo.GetOrCreateSession(user.identifier, deviceIdOption, deviceNameOption, ref)) {
         case Success(SessionRepo.SessionCreated(token, deviceId)) => SessionCreated(user.identifier, token, deviceId, replyTo)
         case Success(SessionRepo.SessionFailed(error)) => OtherFailure(error.getMessage, replyTo)
+        case Success(_) => OtherFailure("unreachable", replyTo)
         case Failure(error) => OtherFailure(error.getMessage, replyTo)
       }
     } else {
