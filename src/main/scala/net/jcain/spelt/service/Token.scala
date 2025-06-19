@@ -1,14 +1,14 @@
 package net.jcain.spelt.service
 
-import com.auth0.jwt.{JWT, JWTVerifier}
 import com.auth0.jwt.algorithms.Algorithm
 import com.auth0.jwt.exceptions.JWTVerificationException
 import com.auth0.jwt.interfaces.DecodedJWT
+import com.auth0.jwt.{JWT, JWTVerifier}
 import net.jcain.spelt.models.Config
 
 import java.nio.file.{Files, Path}
-import java.security.interfaces.{RSAPrivateCrtKey, RSAPrivateKey, RSAPublicKey}
 import java.security.KeyFactory
+import java.security.interfaces.{RSAPrivateCrtKey, RSAPrivateKey, RSAPublicKey}
 import java.security.spec.{PKCS8EncodedKeySpec, RSAPublicKeySpec}
 
 object Token {

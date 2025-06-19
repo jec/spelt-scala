@@ -1,9 +1,9 @@
 package net.jcain.spelt.repo
 
-import org.apache.pekko.actor.typed.{ActorRef, Behavior}
-import org.apache.pekko.actor.typed.scaladsl.Behaviors
 import net.jcain.spelt.models.{Database, User}
 import net.jcain.spelt.service.Auth
+import org.apache.pekko.actor.typed.scaladsl.Behaviors
+import org.apache.pekko.actor.typed.{ActorRef, Behavior}
 import org.neo4j.driver.Values
 import org.neo4j.driver.exceptions.NoSuchRecordException
 import org.neo4j.driver.types.Node

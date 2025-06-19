@@ -1,9 +1,7 @@
 package net.jcain.spelt.controllers
 
-import net.jcain.spelt.models.Config
-import net.jcain.spelt.service.Auth
 import play.api.libs.json.{JsValue, Json}
-import play.api.mvc.{Action, AnyContent, BaseController, ControllerComponents, Request}
+import play.api.mvc.*
 
 import javax.inject.{Inject, Singleton}
 

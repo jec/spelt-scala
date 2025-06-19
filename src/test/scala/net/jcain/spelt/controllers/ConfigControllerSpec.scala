@@ -1,11 +1,11 @@
 package net.jcain.spelt.controllers
 
 import net.jcain.spelt.models.Config
-import org.scalatestplus.play._
-import org.scalatestplus.play.guice._
-import play.api.libs.json._
-import play.api.test._
-import play.api.test.Helpers._
+import org.scalatestplus.play.*
+import org.scalatestplus.play.guice.*
+import play.api.libs.json.*
+import play.api.test.*
+import play.api.test.Helpers.*
 
 class ConfigControllerSpec extends PlaySpec with GuiceOneAppPerTest with Injecting {
   "GET /_matrix/client/versions" should {

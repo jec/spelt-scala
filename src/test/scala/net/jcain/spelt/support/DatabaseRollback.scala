@@ -3,9 +3,9 @@ package net.jcain.spelt.support
 import net.jcain.spelt.models.Database
 import org.scalatest.{BeforeAndAfterEach, Suite}
 
+import scala.concurrent.*
+import scala.concurrent.duration.*
 import scala.jdk.FutureConverters
-import scala.concurrent._
-import scala.concurrent.duration._
 import scala.language.postfixOps
 
 trait DatabaseRollback extends BeforeAndAfterEach { this: Suite =>

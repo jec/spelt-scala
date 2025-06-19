@@ -1,14 +1,14 @@
 package net.jcain.spelt.service
 
-import org.apache.pekko.actor.typed.{ActorRef, Behavior}
-import org.apache.pekko.actor.typed.scaladsl.{ActorContext, Behaviors}
-import org.apache.pekko.util.Timeout
 import net.jcain.spelt.models.User
 import net.jcain.spelt.repo.{SessionRepo, UserRepo}
+import org.apache.pekko.actor.typed.scaladsl.{ActorContext, Behaviors}
+import org.apache.pekko.actor.typed.{ActorRef, Behavior}
+import org.apache.pekko.util.Timeout
 import org.springframework.security.crypto.argon2.Argon2PasswordEncoder
 import play.api.libs.functional.syntax.toFunctionalBuilderOps
-import play.api.libs.json._
-import play.api.libs.json.Reads._
+import play.api.libs.json.*
+import play.api.libs.json.Reads.*
 
 import scala.concurrent.duration.DurationInt
 import scala.util.{Failure, Success}

@@ -5,8 +5,8 @@ import com.auth0.jwt.algorithms.Algorithm
 import com.auth0.jwt.exceptions.{JWTDecodeException, SignatureVerificationException, TokenExpiredException}
 import net.jcain.spelt.models.Config
 import org.scalatest.Inside.inside
+import org.scalatest.matchers.should.*
 import org.scalatest.wordspec.AnyWordSpecLike
-import org.scalatest.matchers.should._
 
 import java.util.UUID
 

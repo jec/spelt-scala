@@ -1,9 +1,8 @@
 package net.jcain.spelt.repo
 
-import org.apache.pekko.actor.testkit.typed.scaladsl.ScalaTestWithActorTestKit
-import net.jcain.spelt.models.Config
 import net.jcain.spelt.service.Token
 import net.jcain.spelt.support.DatabaseRollback
+import org.apache.pekko.actor.testkit.typed.scaladsl.ScalaTestWithActorTestKit
 import org.scalatest.Inside.inside
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
