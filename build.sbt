@@ -5,6 +5,7 @@ ThisBuild / organization := "net.jcain"
 Test / parallelExecution := false
 
 val pekkoVersion = "1.1.4"
+val guiceVersion = "6.0.0"
 
 lazy val spelt = (project in file("."))
   .enablePlugins(PlayScala)
@@ -20,8 +21,8 @@ lazy val spelt = (project in file("."))
       "com.auth0" % "java-jwt" % "4.4.0",
       "org.bouncycastle" % "bcprov-jdk18on" % "1.78.1",
       "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.17.1",
-      "com.google.inject" % "guice" % "5.1.0",
-      "com.google.inject.extensions" % "guice-assistedinject" % "5.1.0",
+      "com.google.inject" % "guice" % guiceVersion,
+      "com.google.inject.extensions" % "guice-assistedinject" % guiceVersion,
       "org.apache.pekko" %% "pekko-actor-testkit-typed" % pekkoVersion % Test,
       "org.apache.pekko" %% "pekko-protobuf-v3" % pekkoVersion % Test,
       "org.apache.pekko" %% "pekko-serialization-jackson" % pekkoVersion % Test,
