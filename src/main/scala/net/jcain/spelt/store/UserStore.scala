@@ -10,7 +10,6 @@ import org.apache.pekko.actor.typed.scaladsl.Behaviors
 import org.apache.pekko.actor.typed.{ActorRef, Behavior}
 
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.language.postfixOps
 import scala.util.{Failure, Success}
 
 /**
@@ -84,7 +83,7 @@ object UserStore:
   /**
    * Looks up a user by `identifier` and responds with `Some(user)`; else  `None`
    *
-   * @param identifier user name to look up
+   * @param identifier username to look up
    * @param replyTo Actor that receives response
    */
   private def read(identifier: String, replyTo: ActorRef[Response]): Unit =
@@ -105,7 +104,7 @@ object UserStore:
   /**
    * Looks up a user and sends a message to the requester indicating existence
    *
-   * @param identifier user name to look up
+   * @param identifier username to look up
    * @param replyTo Actor that receives response
    */
   private def check(identifier: String, replyTo: ActorRef[Response]): Unit =
@@ -122,7 +121,7 @@ object UserStore:
   /**
    * Looks up a user before calling create()
    *
-   * @param identifier user name to look up
+   * @param identifier username to look up
    * @param password password
    * @param email email address
    * @param replyTo Actor that receives response

@@ -6,8 +6,6 @@ import org.scalatest.{BeforeAndAfterEach, Suite}
 
 import scala.concurrent.*
 import scala.concurrent.duration.*
-import scala.jdk.FutureConverters
-import scala.language.postfixOps
 
 trait DatabaseRollback extends BeforeAndAfterEach { this: Suite =>
   override def beforeEach(): Unit = {
@@ -23,7 +21,7 @@ trait DatabaseRollback extends BeforeAndAfterEach { this: Suite =>
   private def wipeData(): Unit = {
     Await.result(
       c"MATCH (x) DETACH DELETE x".execute.void(Database.driver),
-      5 minutes
+      5.minutes
     )
   }
 }

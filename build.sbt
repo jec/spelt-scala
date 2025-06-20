@@ -1,4 +1,6 @@
 ThisBuild / scalaVersion := "3.3.6"
+ThisBuild / semanticdbEnabled := true
+ThisBuild / semanticdbVersion := scalafixSemanticdb.revision
 ThisBuild / organization := "net.jcain"
 
 // Tests involving the database cannot run concurrently.
@@ -14,6 +16,7 @@ lazy val spelt = (project in file("."))
   .settings(
     name := "Spelt",
     version := "0.1.0-SNAPSHOT",
+    scalacOptions += "-Wunused:imports",
     coverageExcludedPackages := ".*Reverse.*Controller;.*Routes;.*RoutesPrefix",
     libraryDependencies ++= Seq(
       guice,
