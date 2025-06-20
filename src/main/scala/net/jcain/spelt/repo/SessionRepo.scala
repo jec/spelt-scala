@@ -1,12 +1,16 @@
 package net.jcain.spelt.repo
 
+import neotypes.mappers.ResultMapper
+import neotypes.model.query.QueryParam
+import neotypes.syntax.all.*
 import net.jcain.spelt.models.Database
 import net.jcain.spelt.service.Token
 import org.apache.pekko.actor.typed.scaladsl.Behaviors
 import org.apache.pekko.actor.typed.{ActorRef, Behavior}
-import org.neo4j.driver.Values
 
 import java.util.UUID
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.util.{Failure, Success}
 
 /**
  * An Actor that implements the CRUD operations for Session nodes
@@ -71,35 +75,26 @@ object SessionRepo {
    * @param deviceName a device name to use (optional)
    * @param replyTo requesting Actor
    */
-  private def readByDevice(identifier: String, deviceId: String, deviceName: Option[String], replyTo: ActorRef[Response]): Unit = {
-    val dbSession = Database.getSession
-
-    dbSession.executeReadAsync(
-      _.runAsync(
-        """
-          MATCH (u:User)-[AUTHENTICATED_AS]->(s:Session)
-          WHERE u.identifier = $identifier
-          AND s.deviceId = $deviceId
-          RETURN s.uuid
-        """,
-        Values.parameters(
-          "identifier", identifier,
-          "deviceId", deviceId
-        )
-      )
-      .thenCompose(_.nextAsync)
-    )
-    .thenAccept(Option(_) match {
-      // If a matching Session is found, update it.
-      case Some(record) =>
-        updateSession(record.get(0).asString, replyTo)
-
-      // else create one.
-      case None =>
-        createSession(identifier, deviceName, replyTo)
-    })
-    .whenComplete((_, _) => dbSession.closeAsync)
-  }
+  private def readByDevice(identifier: String, deviceId: String, deviceName: Option[String], replyTo: ActorRef[Response]): Unit =
+    c"""
+      MATCH (u:User)-[AUTHENTICATED_AS]->(s:Session)
+      WHERE u.identifier = $identifier
+      AND s.deviceId = $deviceId
+      RETURN s.uuid
+    """
+      .query(ResultMapper.option(ResultMapper.string))
+      .withParams(Map(
+        "identifier" -> QueryParam(identifier),
+        "deviceId" -> QueryParam(deviceId)
+      ))
+      .single(Database.driver)
+      .onComplete:
+        case Success(Some(uuid)) =>
+          updateSession(uuid, replyTo)
+        case Success(None) =>
+          createSession(identifier, deviceName, replyTo)
+        case Failure(error) =>
+          replyTo ! SessionFailed(error)
 
   /**
    * Creates a new Session with a new token and device ID
@@ -110,40 +105,36 @@ object SessionRepo {
    * @param deviceName device name
    * @param replyTo requesting Actor
    */
-  private def createSession(identifier: String, deviceName: Option[String], replyTo: ActorRef[Response]): Unit = {
-    val dbSession = Database.getSession
+  private def createSession(identifier: String, deviceName: Option[String], replyTo: ActorRef[Response]): Unit =
     val uuid = UUID.randomUUID.toString
     val deviceId = UUID.randomUUID.toString
     val token = Token.generateAndSign(uuid)
 
-    dbSession.executeWriteAsync(
-      _.runAsync(
+    c"""
+      MATCH (u:User)
+      WHERE u.identifier = $identifier
+      CREATE (u)-[:AUTHENTICATED_AS]->(s:Session {
+        uuid: $uuid,
+        deviceId: $deviceId,
+        token: $token,
+        deviceName: $deviceName
+      })
+      RETURN s.deviceId
     """
-          MATCH (u:User)
-          WHERE u.identifier = $identifier
-          CREATE (u)-[:AUTHENTICATED_AS]->(s:Session {
-            uuid: $uuid,
-            deviceId: $deviceId,
-            token: $token,
-            deviceName: $deviceName
-          })
-          RETURN s.deviceId
-        """,
-        Values.parameters(
-          "identifier", identifier,
-          "uuid", uuid,
-          "deviceId", deviceId,
-          "token", token,
-          "deviceName", deviceName.getOrElse("")
-        )
-      )
-      .thenCompose(_.nextAsync)
-    )
-    .thenApply(record => SessionCreated(token, record.get(0).asString).asInstanceOf[Response])
-    .exceptionally(error => SessionFailed(error).asInstanceOf[Response])
-    .thenAccept(replyTo ! _)
-    .whenComplete((_, _) => dbSession.closeAsync)
-  }
+      .query(ResultMapper.string)
+      .withParams(Map(
+        "identifier" -> QueryParam(identifier),
+        "uuid" -> QueryParam(uuid),
+        "deviceId" -> QueryParam(deviceId),
+        "token" -> QueryParam(token),
+        "deviceName" -> QueryParam(deviceName.getOrElse(""))
+      ))
+      .single(Database.driver)
+      .onComplete:
+        case Success(deviceId) =>
+          replyTo ! SessionCreated(token, deviceId)
+        case Failure(error) =>
+          replyTo ! SessionFailed(error)
 
   /**
    * Updates an existing Session with a new token and sends a SessionCreated message to the requesting Actor
@@ -151,34 +142,27 @@ object SessionRepo {
    * @param uuid Session UUID
    * @param replyTo requesting Actor
    */
-  private def updateSession(uuid: String, replyTo: ActorRef[Response]): Unit = {
-    val dbSession = Database.getSession
+  private def updateSession(uuid: String, replyTo: ActorRef[Response]): Unit =
     val token = Token.generateAndSign(uuid)
 
-    dbSession.executeWriteAsync(
-      _.runAsync(
+    c"""
+      MATCH (s:Session)
+      WHERE s.uuid = $uuid
+      WITH s
+      SET s.token = $token
+      RETURN s.deviceId
     """
-          MATCH (s:Session)
-          WHERE s.uuid = $uuid
-          WITH s
-          SET s.token = $token
-          RETURN s.deviceId
-        """,
-        Values.parameters(
-          "uuid", uuid,
-          "token", token
-        )
-      )
-      .thenCompose(_.nextAsync)
-    )
-    .thenAccept(Option(_) match {
-      case Some(record) =>
-        replyTo ! SessionCreated(token, record.get(0).asString)
-      case None =>
-        // TODO: Send something here.
-    })
-    .whenComplete((_, _) => dbSession.closeAsync)
-  }
+      .query(ResultMapper.string)
+      .withParams(Map(
+        "uuid" -> QueryParam(uuid),
+        "token" -> QueryParam(token)
+      ))
+      .single(Database.driver)
+      .onComplete:
+        case Success(deviceId) =>
+          replyTo ! SessionCreated(token, deviceId)
+        case Failure(error) =>
+          replyTo ! SessionFailed(error)
 
   /**
    * Validates a token by decoding it and then looking up the Session it references
@@ -186,30 +170,25 @@ object SessionRepo {
    * @param token JWT to validate
    * @param replyTo requesting Actor
    */
-  private def validateToken(token: String, replyTo: ActorRef[Response]): Unit = {
+  private def validateToken(token: String, replyTo: ActorRef[Response]): Unit =
     Token.verify(token) match {
       case Left(error) =>
         replyTo ! Invalid(error)
 
       case Right(decodedJwt) =>
         val uuid = decodedJwt.getSubject
-        val dbSession = Database.getSession
 
         // Look up Session by Uuid
-        dbSession.executeReadAsync(
-          _.runAsync(
-            "MATCH (s:Session) WHERE s.uuid = $uuid RETURN count(s)",
-            Values.parameters("uuid", uuid)
-          )
-          .thenCompose(_.nextAsync)
-        )
-        .thenApply(record =>
-          if (record.get(0).asInt == 1)
-            replyTo ! Valid
-          else
-            replyTo ! Invalid(new RuntimeException("Subject invalid: Session not found"))
-        )
-        .whenComplete((_, _) => dbSession.closeAsync)
+        c"MATCH (s:Session) WHERE s.uuid = $uuid RETURN count(s)"
+          .query(ResultMapper.int)
+          .withParams(Map("uuid" -> QueryParam(uuid)))
+          .single(Database.driver)
+          .onComplete:
+            case Success(1) =>
+              replyTo ! Valid
+            case Success(_) =>
+              replyTo ! Invalid(new RuntimeException("Subject invalid: Session not found"))
+            case Failure(error) =>
+              () // TODO: Handle error.
     }
-  }
 }

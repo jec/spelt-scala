@@ -23,15 +23,14 @@ lazy val spelt = (project in file("."))
       "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.17.1",
       "com.google.inject" % "guice" % guiceVersion,
       "com.google.inject.extensions" % "guice-assistedinject" % guiceVersion,
+      "io.github.neotypes" %% "neotypes-core" % "1.2.2",
+      "io.github.neotypes" %% "neotypes-generic" % "1.2.2",
       "org.apache.pekko" %% "pekko-actor-testkit-typed" % pekkoVersion % Test,
       "org.apache.pekko" %% "pekko-protobuf-v3" % pekkoVersion % Test,
       "org.apache.pekko" %% "pekko-serialization-jackson" % pekkoVersion % Test,
       "org.apache.pekko" %% "pekko-stream" % pekkoVersion % Test,
-      "org.neo4j.driver" % "neo4j-java-driver" % "5.8.0",
-      // Added the following to fix a Guice error. Without this, it was
-      // using 2.8.1, which has an Akka dependency (should be Pekko).
-      "org.playframework" %% "play-ahc-ws" % "3.0.4",
+      "org.neo4j.driver" % "neo4j-java-driver" % "5.28.5",
       "org.scalatestplus.play" %% "scalatestplus-play" % "7.0.1" % Test,
-      "org.springframework.security" % "spring-security-crypto" % "6.4.4"
+      "org.springframework.security" % "spring-security-crypto" % "6.5.1"
     )
   )

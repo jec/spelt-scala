@@ -1,15 +1,15 @@
 package net.jcain.spelt.repo
 
+import neotypes.generic.implicits.*
+import neotypes.mappers.ResultMapper
+import neotypes.model.query.QueryParam
+import neotypes.syntax.all.*
 import net.jcain.spelt.models.{Database, User}
 import net.jcain.spelt.service.Auth
 import org.apache.pekko.actor.typed.scaladsl.Behaviors
 import org.apache.pekko.actor.typed.{ActorRef, Behavior}
-import org.neo4j.driver.Values
-import org.neo4j.driver.exceptions.NoSuchRecordException
-import org.neo4j.driver.types.Node
 
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.jdk.FutureConverters
 import scala.language.postfixOps
 import scala.util.{Failure, Success}
 
@@ -61,41 +61,25 @@ object UserRepo:
   /**
    * Creates a user
    *
-   * @param identifier local user name
+   * @param identifier local username
    * @param password password
    * @param email email address
    * @param replyTo Actor that receives response
    */
   private def create(identifier: String, password: String, email: String, replyTo: ActorRef[Response]): Unit =
-    val dbSession = Database.getSession
-
-    val cypher = """
-      CREATE (u:User {
-        identifier: $identifier,
-        encryptedPassword: $encryptedPassword,
-        email: $email
-      }) RETURN u.identifier"""
-
-    val bindings = Values.parameters(
-      "identifier", identifier,
-      "encryptedPassword", Auth.hashPassword(password),
-      "email", email
-    )
-
-    FutureConverters
-      .CompletionStageOps(
-        dbSession
-          .executeWriteAsync(_.runAsync(cypher, bindings).thenCompose(_.singleAsync))
-          .thenApply(_.get(0).asString)
-      )
-      .asScala
+    c"CREATE (u:User { identifier: $identifier, encryptedPassword: $password, email: $email }) RETURN u.identifier"
+      .query(ResultMapper.string)
+      .withParams(Map(
+        "identifier" -> QueryParam(identifier),
+        "encryptedPassword" -> QueryParam(Auth.hashPassword(password)),
+        "email" -> QueryParam(email)
+      ))
+      .single(Database.driver)
       .onComplete:
         case Success(identifier) =>
           replyTo ! CreateUserResponse(Right(identifier))
-          dbSession.closeAsync
         case Failure(error) =>
           replyTo ! CreateUserResponse(Left(error))
-          dbSession.closeAsync
 
   /**
    * Looks up a user by `identifier` and responds with `Some(user)`; else  `None`
@@ -104,53 +88,19 @@ object UserRepo:
    * @param replyTo Actor that receives response
    */
   private def read(identifier: String, replyTo: ActorRef[Response]): Unit =
-    val dbSession = Database.getSession
-    val cypher = "MATCH (u:User) WHERE u.identifier = $identifier RETURN u"
-    val bindings = Values.parameters("identifier", identifier)
-
-    FutureConverters
-      .CompletionStageOps(
-        dbSession
-          .executeReadAsync(
-            _.runAsync(cypher, bindings)
-              .thenCompose(_.singleAsync)
-              .exceptionally(error =>
-                if error.isInstanceOf[NoSuchRecordException] then
-                  println(s"ErrorA: $error")
-                  null
-                else
-                  println(s"ErrorB: $error")
-                  null
-              )
-          )
-          .thenApply(Option(_).map(_.get(0).asNode))
-          .exceptionally(error =>
-            if error.isInstanceOf[NoSuchRecordException] then
-              println(s"Error0: $error")
-              None
-            else
-              println(s"Error1: $error")
-              None
-          )
-      )
-      .asScala
+    c"MATCH (u:User) WHERE u.identifier = $identifier RETURN u"
+      .query(ResultMapper.option(ResultMapper.productDerive[User]))
+      .withParams(Map("identifier" -> QueryParam(identifier)))
+      .single(Database.driver)
       .onComplete:
-        case Success(Some(node: Node)) =>
-          replyTo ! GetUserResponse(Some(User(
-            node.get("identifier").asString,
-            node.get("encryptedPassword").asString,
-            node.get("email").asString
-          )))
-          dbSession.closeAsync
+        case Success(Some(user: User)) =>
+          replyTo ! GetUserResponse(Some(user))
         case Success(None) =>
           replyTo ! GetUserResponse(None)
-          dbSession.closeAsync
         case Failure(error) =>
           // TODO: Handle error.
           println(s"Error2: $error")
           replyTo ! GetUserResponse(None)
-          dbSession.closeAsync
-  end read
 
   /**
    * Looks up a user and sends a message to the requester indicating existence
@@ -159,24 +109,15 @@ object UserRepo:
    * @param replyTo Actor that receives response
    */
   private def check(identifier: String, replyTo: ActorRef[Response]): Unit =
-    val dbSession = Database.getSession
-    val cypher = "MATCH (u:User) WHERE u.identifier = $identifier RETURN count(u)"
-    val bindings = Values.parameters("identifier", identifier)
-
-    FutureConverters
-      .CompletionStageOps(
-        dbSession
-        .executeReadAsync(_.runAsync(cypher, bindings).thenCompose(_.singleAsync))
-        .thenApply(_.get(0).asInt)
-      )
-      .asScala
+    c"MATCH (u:User) WHERE u.identifier = $identifier RETURN count(u)"
+      .query(ResultMapper.int)
+      .withParams(Map("identifier" -> QueryParam(identifier)))
+      .single(Database.driver)
       .onComplete:
         case Success(count) =>
           replyTo ! UserInquiryResponse(count > 0)
-          dbSession.closeAsync
         case Failure(error) =>
-          // TODO: Handle error.
-          dbSession.closeAsync
+          () // TODO: Handle error.
 
   /**
    * Looks up a user before calling create()
@@ -187,24 +128,14 @@ object UserRepo:
    * @param replyTo Actor that receives response
    */
   private def checkBeforeCreate(identifier: String, password: String, email: String, replyTo: ActorRef[Response]): Unit =
-    val dbSession = Database.getSession
-    val cypher = "MATCH (u:User) WHERE u.identifier = $identifier RETURN count(u)"
-    val bindings = Values.parameters("identifier", identifier)
-
-    FutureConverters
-      .CompletionStageOps(
-        dbSession
-        .executeReadAsync(_.runAsync(cypher, bindings).thenCompose(_.singleAsync))
-        .thenApply(_.get(0).asInt)
-      )
-      .asScala
+    c"MATCH (u:User) WHERE u.identifier = $identifier RETURN count(u)"
+      .query(ResultMapper.int)
+      .withParams(Map("identifier" -> QueryParam(identifier)))
+      .single(Database.driver)
       .onComplete:
         case Success(0) =>
           create(identifier,password, email, replyTo)
-          dbSession.closeAsync
         case Success(_) =>
           replyTo ! CreateUserResponse(Left(new IllegalArgumentException(s"User \"$identifier\" already exists")))
-          dbSession.closeAsync
         case Failure(error) =>
-          // TODO: Handle error.
-          dbSession.closeAsync
+          () // TODO: Handle error.

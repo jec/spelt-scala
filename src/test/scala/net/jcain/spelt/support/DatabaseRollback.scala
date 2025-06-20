@@ -1,5 +1,6 @@
 package net.jcain.spelt.support
 
+import neotypes.syntax.all.*
 import net.jcain.spelt.models.Database
 import org.scalatest.{BeforeAndAfterEach, Suite}
 
@@ -20,12 +21,8 @@ trait DatabaseRollback extends BeforeAndAfterEach { this: Suite =>
   }
 
   private def wipeData(): Unit = {
-    val session = Database.getSession
-
     Await.result(
-      FutureConverters.CompletionStageOps(
-        session.executeWriteAsync(_.runAsync("MATCH (x) DETACH DELETE x"))
-      ).asScala,
+      c"MATCH (x) DETACH DELETE x".execute.void(Database.driver),
       5 minutes
     )
   }
