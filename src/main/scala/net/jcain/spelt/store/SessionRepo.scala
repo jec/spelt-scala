@@ -1,4 +1,4 @@
-package net.jcain.spelt.repo
+package net.jcain.spelt.store
 
 import neotypes.mappers.ResultMapper
 import neotypes.model.query.QueryParam

@@ -1,4 +1,4 @@
-package net.jcain.spelt.repo
+package net.jcain.spelt.store
 
 import neotypes.generic.implicits.*
 import neotypes.mappers.ResultMapper

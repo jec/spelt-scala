@@ -1,4 +1,4 @@
-package net.jcain.spelt.repo
+package net.jcain.spelt.store
 
 import net.jcain.spelt.models.User
 import net.jcain.spelt.support.DatabaseRollback
