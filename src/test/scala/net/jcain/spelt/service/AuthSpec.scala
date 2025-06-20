@@ -1,7 +1,7 @@
 package net.jcain.spelt.service
 
 import net.jcain.spelt.models.User
-import net.jcain.spelt.store.{SessionRepo, UserRepo}
+import net.jcain.spelt.store.{SessionStore, UserStore}
 import net.jcain.spelt.support.DatabaseRollback
 import org.apache.pekko.actor.testkit.typed.scaladsl.ScalaTestWithActorTestKit
 import org.scalatest.Inside.inside
@@ -38,8 +38,8 @@ class AuthSpec extends ScalaTestWithActorTestKit with AnyWordSpecLike with Match
   "LogIn" when {
     "credentials are valid" should {
       "respond with Auth.Succeeded" in new LoginRequestParams {
-        private val userRepoProbe = testKit.createTestProbe[UserRepo.Request]()
-        private val sessionRepoProbe = testKit.createTestProbe[SessionRepo.Request]()
+        private val userRepoProbe = testKit.createTestProbe[UserStore.Request]()
+        private val sessionRepoProbe = testKit.createTestProbe[SessionStore.Request]()
         private val auth = testKit.spawn(Auth(userRepoProbe.ref, sessionRepoProbe.ref))
 
         // Send LogIn message to Auth.
@@ -47,10 +47,10 @@ class AuthSpec extends ScalaTestWithActorTestKit with AnyWordSpecLike with Match
         auth ! Auth.LogIn(parsedParams, probe.ref)
 
         // Expect UserRepo to receive GetUser; respond with CreateUserResponse.
-        inside(userRepoProbe.expectMessageType[UserRepo.Request]) {
-          case UserRepo.GetUser(username, replyTo) =>
+        inside(userRepoProbe.expectMessageType[UserStore.Request]) {
+          case UserStore.GetUser(username, replyTo) =>
             username shouldEqual existingUser.identifier
-            replyTo ! UserRepo.GetUserResponse(Some(existingUser))
+            replyTo ! UserStore.GetUserResponse(Some(existingUser))
         }
 
         // Create a UUID and JWT that the SessionRepo would create upon success.
@@ -58,13 +58,13 @@ class AuthSpec extends ScalaTestWithActorTestKit with AnyWordSpecLike with Match
         private val token = Token.generateAndSign(sessionUuid)
 
         // Expect SessionRepo to receive GetOrCreateSession; respond with SessionCreated.
-        inside(sessionRepoProbe.expectMessageType[SessionRepo.Request]) {
-          case SessionRepo.GetOrCreateSession(username, deviceId, deviceName, replyTo) =>
+        inside(sessionRepoProbe.expectMessageType[SessionStore.Request]) {
+          case SessionStore.GetOrCreateSession(username, deviceId, deviceName, replyTo) =>
             username shouldEqual existingUser.identifier
             deviceId shouldEqual Some(requestDeviceId)
             deviceName shouldEqual Some(requestDeviceName)
 
-            replyTo ! SessionRepo.SessionCreated(token, deviceId.get)
+            replyTo ! SessionStore.SessionCreated(token, deviceId.get)
         }
 
         // Expect Auth to respond with LoginSucceeded.

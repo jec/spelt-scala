@@ -1,7 +1,7 @@
 package net.jcain.spelt.service
 
 import net.jcain.spelt.models.User
-import net.jcain.spelt.store.{SessionRepo, UserRepo}
+import net.jcain.spelt.store.{SessionStore, UserStore}
 import org.apache.pekko.actor.typed.scaladsl.{ActorContext, Behaviors}
 import org.apache.pekko.actor.typed.{ActorRef, Behavior}
 import org.apache.pekko.util.Timeout
@@ -65,7 +65,7 @@ object Auth {
    *
    * @return the subsequent Behaviors
    */
-  def apply(userRepo: ActorRef[UserRepo.Request], sessionRepo: ActorRef[SessionRepo.Request]): Behavior[Request] =
+  def apply(userRepo: ActorRef[UserStore.Request], sessionRepo: ActorRef[SessionStore.Request]): Behavior[Request] =
     Behaviors.setup { context =>
       Behaviors.receiveMessage {
         case LogIn(parsedParams, replyTo) =>
@@ -121,9 +121,9 @@ object Auth {
    * @param replyTo requesting Actor
    */
   private def requestUser(parsedParams: JsValue,
-                    context: ActorContext[Request],
-                    userRepo: ActorRef[UserRepo.Request],
-                    replyTo: ActorRef[Response]): Unit =
+                          context: ActorContext[Request],
+                          userRepo: ActorRef[UserStore.Request],
+                          replyTo: ActorRef[Response]): Unit =
     parsedParams.validate[PasswordLogin] match {
       case JsSuccess(PasswordLogin(
         deviceIdOption,
@@ -135,9 +135,9 @@ object Auth {
         implicit val timeout: Timeout = 3.seconds
 
         // Ask UserRepo for the User and translate response to an Auth.Request.
-        context.ask(userRepo, ref => UserRepo.GetUser(username, ref)) {
-          case Success(UserRepo.GetUserResponse(Some(user))) => UserFound(user, password, deviceIdOption, deviceNameOption, replyTo)
-          case Success(UserRepo.GetUserResponse(None)) => UserNotFound(username, replyTo)
+        context.ask(userRepo, ref => UserStore.GetUser(username, ref)) {
+          case Success(UserStore.GetUserResponse(Some(user))) => UserFound(user, password, deviceIdOption, deviceNameOption, replyTo)
+          case Success(UserStore.GetUserResponse(None)) => UserNotFound(username, replyTo)
           case Success(_) => OtherFailure("unreachable", replyTo)
           case Failure(error) => OtherFailure(error.getMessage, replyTo)
         }
@@ -158,18 +158,18 @@ object Auth {
    * @param replyTo requesting Actor
    */
   private def requestSession(user: User,
-                        password: String,
-                        deviceIdOption: Option[String],
-                        deviceNameOption: Option[String],
-                        context: ActorContext[Request],
-                        sessionRepo: ActorRef[SessionRepo.Request],
-                        replyTo: ActorRef[Response]): Unit = {
+                             password: String,
+                             deviceIdOption: Option[String],
+                             deviceNameOption: Option[String],
+                             context: ActorContext[Request],
+                             sessionRepo: ActorRef[SessionStore.Request],
+                             replyTo: ActorRef[Response]): Unit = {
     implicit val timeout: Timeout = 3.seconds
 
     if (passwordMatches(user.encryptedPassword, password)) {
-      context.ask(sessionRepo, ref => SessionRepo.GetOrCreateSession(user.identifier, deviceIdOption, deviceNameOption, ref)) {
-        case Success(SessionRepo.SessionCreated(token, deviceId)) => SessionCreated(user.identifier, token, deviceId, replyTo)
-        case Success(SessionRepo.SessionFailed(error)) => OtherFailure(error.getMessage, replyTo)
+      context.ask(sessionRepo, ref => SessionStore.GetOrCreateSession(user.identifier, deviceIdOption, deviceNameOption, ref)) {
+        case Success(SessionStore.SessionCreated(token, deviceId)) => SessionCreated(user.identifier, token, deviceId, replyTo)
+        case Success(SessionStore.SessionFailed(error)) => OtherFailure(error.getMessage, replyTo)
         case Success(_) => OtherFailure("unreachable", replyTo)
         case Failure(error) => OtherFailure(error.getMessage, replyTo)
       }

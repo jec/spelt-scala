@@ -29,7 +29,7 @@ import scala.util.{Failure, Success}
  *   Responses:
  *   * UserInquiryResponse -- contains a boolean indicating existence
  */
-object UserRepo:
+object UserStore:
   sealed trait Request
   final case class CreateUser(identifier: String, password: String, email: String, replyTo: ActorRef[Response]) extends Request
   final case class GetUser(identifier: String, replyTo: ActorRef[Response]) extends Request

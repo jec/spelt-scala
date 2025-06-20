@@ -31,7 +31,7 @@ import scala.util.{Failure, Success}
  *     previous token issued for that device.
  *   - A login request with no device ID generates a new device ID.
  */
-object SessionRepo {
+object SessionStore {
   sealed trait Request
   final case class GetOrCreateSession(identifier: String, deviceId: Option[String], deviceName: Option[String], replyTo: ActorRef[Response]) extends Request
   final case class ValidateToken(token: String, replyTo: ActorRef[Response]) extends Request
