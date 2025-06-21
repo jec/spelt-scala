@@ -37,7 +37,7 @@ class SessionStoreSpec extends ScalaTestWithActorTestKit with AnyWordSpecLike wi
             }
 
             repo ! SessionStore.ValidateToken(token, probe.ref)
-            probe.expectMessage(SessionStore.Valid)
+            probe.expectMessage(SessionStore.TokenValid)
         }
       }
     }
@@ -82,7 +82,7 @@ class SessionStoreSpec extends ScalaTestWithActorTestKit with AnyWordSpecLike wi
           repo ! SessionStore.ValidateToken(token, probe.ref)
 
           inside(probe.expectMessageType[SessionStore.Response]) {
-            case SessionStore.Invalid(error) =>
+            case SessionStore.TokenInvalid(error) =>
               error.getMessage should include ("Session not found")
           }
         }

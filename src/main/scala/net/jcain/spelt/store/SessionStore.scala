@@ -23,24 +23,27 @@ import scala.util.{Failure, Success}
  *
  * * ValidateToken -- check whether a `token` references a valid Session node
  *   Responses:
- *   * Valid
- *   * Invalid
+ *   * TokenValid
+ *   * TokenInvalid
  *
  * Rules:
- *   - A new login request for the same user and device invalidates any
- *     previous token issued for that device.
+ *   - A new login request for the same user and device invalidates any previous token issued for
+ *     that device.
  *   - A login request with no device ID generates a new device ID.
  */
 object SessionStore {
   sealed trait Request
-  final case class GetOrCreateSession(identifier: String, deviceId: Option[String], deviceName: Option[String], replyTo: ActorRef[Response]) extends Request
+  final case class GetOrCreateSession(identifier: String,
+                                      deviceId: Option[String],
+                                      deviceName: Option[String],
+                                      replyTo: ActorRef[Response]) extends Request
   final case class ValidateToken(token: String, replyTo: ActorRef[Response]) extends Request
 
   sealed trait Response
   final case class SessionCreated(token: String, deviceId: String) extends Response
   final case class SessionFailed(error: Throwable) extends Response
-  object Valid extends Response
-  final case class Invalid(error: Throwable) extends Response
+  object TokenValid extends Response
+  final case class TokenInvalid(error: Throwable) extends Response
 
   /**
    * Dispatches received messages
@@ -173,7 +176,7 @@ object SessionStore {
   private def validateToken(token: String, replyTo: ActorRef[Response]): Unit =
     Token.verify(token) match {
       case Left(error) =>
-        replyTo ! Invalid(error)
+        replyTo ! TokenInvalid(error)
 
       case Right(decodedJwt) =>
         val uuid = decodedJwt.getSubject
@@ -185,9 +188,9 @@ object SessionStore {
           .single(Database.driver)
           .onComplete:
             case Success(1) =>
-              replyTo ! Valid
+              replyTo ! TokenValid
             case Success(_) =>
-              replyTo ! Invalid(new RuntimeException("Subject invalid: Session not found"))
+              replyTo ! TokenInvalid(new RuntimeException("Subject invalid: Session not found"))
             case Failure(error) =>
               () // TODO: Handle error.
     }

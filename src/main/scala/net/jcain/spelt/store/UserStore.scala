@@ -2,10 +2,8 @@ package net.jcain.spelt.store
 
 import neotypes.generic.implicits.*
 import neotypes.mappers.ResultMapper
-import neotypes.model.query.QueryParam
 import neotypes.syntax.all.*
 import net.jcain.spelt.models.{Database, User}
-import net.jcain.spelt.service.Auth
 import org.apache.pekko.actor.typed.scaladsl.Behaviors
 import org.apache.pekko.actor.typed.{ActorRef, Behavior}
 
@@ -36,8 +34,8 @@ object UserStore:
 
   sealed trait Response
   final case class CreateUserResponse(result: Either[Throwable, String]) extends Response
-  final case class GetUserResponse(user: Option[User]) extends Response
-  final case class UserInquiryResponse(exists: Boolean) extends Response
+  final case class GetUserResponse(user: Either[Throwable, Option[User]]) extends Response
+  final case class UserInquiryResponse(exists: Either[Throwable, Boolean]) extends Response
 
   /**
    * Dispatches received messages
@@ -68,11 +66,6 @@ object UserStore:
   private def create(identifier: String, password: String, email: String, replyTo: ActorRef[Response]): Unit =
     c"CREATE (u:User { identifier: $identifier, encryptedPassword: $password, email: $email }) RETURN u.identifier"
       .query(ResultMapper.string)
-      .withParams(Map(
-        "identifier" -> QueryParam(identifier),
-        "encryptedPassword" -> QueryParam(Auth.hashPassword(password)),
-        "email" -> QueryParam(email)
-      ))
       .single(Database.driver)
       .onComplete:
         case Success(identifier) =>
@@ -89,17 +82,14 @@ object UserStore:
   private def read(identifier: String, replyTo: ActorRef[Response]): Unit =
     c"MATCH (u:User) WHERE u.identifier = $identifier RETURN u"
       .query(ResultMapper.option(ResultMapper.productDerive[User]))
-      .withParams(Map("identifier" -> QueryParam(identifier)))
       .single(Database.driver)
       .onComplete:
         case Success(Some(user: User)) =>
-          replyTo ! GetUserResponse(Some(user))
+          replyTo ! GetUserResponse(Right(Some(user)))
         case Success(None) =>
-          replyTo ! GetUserResponse(None)
+          replyTo ! GetUserResponse(Right(None))
         case Failure(error) =>
-          // TODO: Handle error.
-          println(s"Error2: $error")
-          replyTo ! GetUserResponse(None)
+          replyTo ! GetUserResponse(Left(error))
 
   /**
    * Looks up a user and sends a message to the requester indicating existence
@@ -110,13 +100,12 @@ object UserStore:
   private def check(identifier: String, replyTo: ActorRef[Response]): Unit =
     c"MATCH (u:User) WHERE u.identifier = $identifier RETURN count(u)"
       .query(ResultMapper.int)
-      .withParams(Map("identifier" -> QueryParam(identifier)))
       .single(Database.driver)
       .onComplete:
         case Success(count) =>
-          replyTo ! UserInquiryResponse(count > 0)
+          replyTo ! UserInquiryResponse(Right(count > 0))
         case Failure(error) =>
-          () // TODO: Handle error.
+          replyTo ! UserInquiryResponse(Left(error))
 
   /**
    * Looks up a user before calling create()
@@ -129,7 +118,6 @@ object UserStore:
   private def checkBeforeCreate(identifier: String, password: String, email: String, replyTo: ActorRef[Response]): Unit =
     c"MATCH (u:User) WHERE u.identifier = $identifier RETURN count(u)"
       .query(ResultMapper.int)
-      .withParams(Map("identifier" -> QueryParam(identifier)))
       .single(Database.driver)
       .onComplete:
         case Success(0) =>
@@ -137,4 +125,4 @@ object UserStore:
         case Success(_) =>
           replyTo ! CreateUserResponse(Left(new IllegalArgumentException(s"User \"$identifier\" already exists")))
         case Failure(error) =>
-          () // TODO: Handle error.
+          replyTo ! CreateUserResponse(Left(error))

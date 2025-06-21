@@ -50,7 +50,7 @@ class AuthSpec extends ScalaTestWithActorTestKit with AnyWordSpecLike with Match
         inside(userRepoProbe.expectMessageType[UserStore.Request]) {
           case UserStore.GetUser(username, replyTo) =>
             username shouldEqual existingUser.identifier
-            replyTo ! UserStore.GetUserResponse(Some(existingUser))
+            replyTo ! UserStore.GetUserResponse(Right(Some(existingUser)))
         }
 
         // Create a UUID and JWT that the SessionRepo would create upon success.

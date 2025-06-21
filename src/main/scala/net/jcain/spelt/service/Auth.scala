@@ -136,8 +136,8 @@ object Auth {
 
         // Ask UserRepo for the User and translate response to an Auth.Request.
         context.ask(userRepo, ref => UserStore.GetUser(username, ref)) {
-          case Success(UserStore.GetUserResponse(Some(user))) => UserFound(user, password, deviceIdOption, deviceNameOption, replyTo)
-          case Success(UserStore.GetUserResponse(None)) => UserNotFound(username, replyTo)
+          case Success(UserStore.GetUserResponse(Right(Some(user)))) => UserFound(user, password, deviceIdOption, deviceNameOption, replyTo)
+          case Success(UserStore.GetUserResponse(Right(None))) => UserNotFound(username, replyTo)
           case Success(_) => OtherFailure("unreachable", replyTo)
           case Failure(error) => OtherFailure(error.getMessage, replyTo)
         }

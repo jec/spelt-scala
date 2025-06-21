@@ -50,11 +50,11 @@ class UserStoreSpec extends ScalaTestWithActorTestKit with AnyWordSpecLike with 
         val probe = testKit.createTestProbe[UserStore.Response]()
 
         repo ! UserStore.GetUser("phred", probe.ref)
-        probe.expectMessage(UserStore.GetUserResponse(None))
+        probe.expectMessage(UserStore.GetUserResponse(Right(None)))
       }
     }
 
-    "when user exists" should {
+    "user exists" should {
       "return Some(User)" in {
         val repo = testKit.spawn(UserStore())
 
@@ -67,13 +67,13 @@ class UserStoreSpec extends ScalaTestWithActorTestKit with AnyWordSpecLike with 
         val getProbe = testKit.createTestProbe[UserStore.Response]()
         repo ! UserStore.GetUser("phred", getProbe.ref)
         getProbe.fishForMessagePF(3.seconds) {
-          case UserStore.GetUserResponse(Some(User("phred", _, "phred@example.com"))) =>
+          case UserStore.GetUserResponse(Right(Some(User("phred", _, "phred@example.com")))) =>
             complete
         }
       }
     }
 
-    "when database query raises an exception" should {
+    "database query raises an exception" should {
       "return None" in {
         // TODO: Implement test.
       }
@@ -87,7 +87,7 @@ class UserStoreSpec extends ScalaTestWithActorTestKit with AnyWordSpecLike with 
         val probe = testKit.createTestProbe[UserStore.Response]()
 
         repo ! UserStore.UserInquiry("phred", probe.ref)
-        probe.expectMessage(UserStore.UserInquiryResponse(false))
+        probe.expectMessage(UserStore.UserInquiryResponse(Right(false)))
       }
     }
 
@@ -103,7 +103,7 @@ class UserStoreSpec extends ScalaTestWithActorTestKit with AnyWordSpecLike with 
         // Check the response for UserInquiry.
         val userExistsProbe = testKit.createTestProbe[UserStore.Response]()
         repo ! UserStore.UserInquiry("phred", userExistsProbe.ref)
-        userExistsProbe.expectMessage(UserStore.UserInquiryResponse(true))
+        userExistsProbe.expectMessage(UserStore.UserInquiryResponse(Right(true)))
       }
     }
   }
