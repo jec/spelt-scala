@@ -1,0 +1,282 @@
+# To Do
+
+Spelt is under active development, and much work remains before this becomes a
+functioning messaging server.
+
+### Client-Server
+
+This checklist tracks the progress of implementing the endpoints defined in the
+[client-server spec](https://spec.matrix.org/v1.14/client-server-api/).
+
+- [ ] 3 Server Discovery
+    - [ ] 3.1 Well-known URI
+        - [x] `GET /.well-known/matrix/client`
+        - [x] `GET /_matrix/client/versions`
+        - [ ] `GET /.well-known/matrix/support`
+- [ ] 4 Client Authentication
+    - [ ] 4.5 User-Interactive Authentication API
+        - [ ] `GET /_matrix/client/v1/register/m.login.registration_token/validity`
+    - [ ] 4.6 Login
+        - [x] `GET /_matrix/client/v3/login`
+        - [ ] `POST /_matrix/client/v3/login`
+        - [ ] `POST /_matrix/client/v1/login/get_token`
+        - [ ] `POST /_matrix/client/v3/refresh`
+        - [ ] `POST /_matrix/client/v3/logout`
+        - [ ] `POST /_matrix/client/v3/logout/all`
+    - [ ] 4.7 Account registration and management
+        - [ ] `POST /_matrix/client/v3/account/deactivate`
+        - [ ] `POST /_matrix/client/v3/account/password`
+        - [ ] `POST /_matrix/client/v3/account/password/email/requestToken`
+        - [ ] `POST /_matrix/client/v3/account/password/msisdn/requestToken`
+        - [ ] `POST /_matrix/client/v3/register`
+        - [ ] `GET /_matrix/client/v3/register/available`
+        - [ ] `POST /_matrix/client/v3/register/email/requestToken`
+        - [ ] `POST /_matrix/client/v3/register/msisdn/requestToken`
+    - [ ] 4.8 Adding Account Administrative Contact Information
+        - [ ] `GET /_matrix/client/v3/account/3pid`
+        - [ ] `POST /_matrix/client/v3/account/3pid` _DEPRECATED_
+        - [ ] `POST /_matrix/client/v3/account/3pid/add`
+        - [ ] `POST /_matrix/client/v3/account/3pid/bind`
+        - [ ] `POST /_matrix/client/v3/account/3pid/delete`
+        - [ ] `POST /_matrix/client/v3/account/3pid/email/requestToken`
+        - [ ] `POST /_matrix/client/v3/account/3pid/msisdn/requestToken`
+        - [ ] `POST /_matrix/client/v3/account/3pid/unbind`
+    - [ ] 4.9 Current account information
+        - [ ] `GET /_matrix/client/v3/account/whoami`
+- [ ] 5 Capabilities negotiation
+        - [ ] `GET /_matrix/client/v3/capabilities`
+- [ ] 6 Filtering
+    - [ ] 6.2 API endpoints
+        - [ ] `POST /_matrix/client/v3/user/{userId}/filter`
+        - [ ] `GET /_matrix/client/v3/user/{userId}/filter/{filterId}`
+- [ ] 7 Events
+    - [ ] 7.6 Syncing
+        - [ ] `GET /_matrix/client/v3/sync`
+        - [ ] `GET /_matrix/client/v3/events` _DEPRECATED_
+        - [ ] `GET /_matrix/client/v3/events/{eventId}` _DEPRECATED_
+        - [ ] `GET /_matrix/client/v3/initialSync` _DEPRECATED_
+    - [ ] 7.7 Getting events for a room
+        - [ ] `GET /_matrix/client/v3/rooms/{roomId}/event/{eventId}`
+        - [ ] `GET /_matrix/client/v3/rooms/{roomId}/joined_members`
+        - [ ] `GET /_matrix/client/v3/rooms/{roomId}/members`
+        - [ ] `GET /_matrix/client/v3/rooms/{roomId}/state`
+        - [ ] `GET /_matrix/client/v3/rooms/{roomId}/state/{eventType}/{stateKey}`
+        - [ ] `GET /_matrix/client/v3/rooms/{roomId}/messages`
+        - [ ] `GET /_matrix/client/v1/rooms/{roomId}/timestamp_to_event`
+        - [ ] `GET /_matrix/client/v3/rooms/{roomId}/initialSync`
+    - [ ] 7.8 Sending events to a room
+        - [ ] `PUT /_matrix/client/v3/rooms/{roomId}/state/{eventType}/{stateKey}`
+        - [ ] `PUT /_matrix/client/v3/rooms/{roomId}/send/{eventType}/{txnId}`
+    - [ ] 7.9 Redactions
+        - [ ] `PUT /_matrix/client/v3/rooms/{roomId}/redact/{eventId}/{txnId}`
+    - [ ] 7.10 Forming relationships between events
+        - [ ] `GET /_matrix/client/v1/rooms/{roomId}/relations/{eventId}`
+        - [ ] `GET /_matrix/client/v1/rooms/{roomId}/relations/{eventId}/{relType}`
+        - [ ] `GET /_matrix/client/v1/rooms/{roomId}/relations/{eventId}/{relType}/{eventType}`
+- [ ] 8 Rooms
+    - [ ] 8.2 Creation
+        - [ ] `POST /_matrix/client/v3/createRoom`
+    - [ ] 8.3 Room aliases
+        - [ ] `GET /_matrix/client/v3/directory/room/{roomAlias}`
+        - [ ] `PUT /_matrix/client/v3/directory/room/{roomAlias}`
+        - [ ] `DELETE /_matrix/client/v3/directory/room/{roomAlias}`
+        - [ ] `GET /_matrix/client/v3/rooms/{roomId}/aliases`
+    - [ ] 8.5 Room membership
+        - [ ] `GET /_matrix/client/v3/joined_rooms`
+        - [ ] `POST /_matrix/client/v3/rooms/{roomId}/invite`
+        - [ ] `POST /_matrix/client/v3/join/{roomIdOrAlias}`
+        - [ ] `POST /_matrix/client/v3/rooms/{roomId}/join`
+        - [ ] `POST /_matrix/client/v3/knock/{roomIdOrAlias}`
+        - [ ] `POST /_matrix/client/v3/rooms/{roomId}/forget`
+        - [ ] `POST /_matrix/client/v3/rooms/{roomId}/leave`
+        - [ ] `POST /_matrix/client/v3/rooms/{roomId}/kick`
+        - [ ] `POST /_matrix/client/v3/rooms/{roomId}/ban`
+        - [ ] `POST /_matrix/client/v3/rooms/{roomId}/unban`
+    - [ ] 8.6 Listing rooms
+        - [ ] `GET /_matrix/client/v3/directory/list/room/{roomId}`
+        - [ ] `PUT /_matrix/client/v3/directory/list/room/{roomId}`
+        - [ ] `GET /_matrix/client/v3/publicRooms`
+        - [ ] `POST /_matrix/client/v3/publicRooms`
+- [ ] 9 User Data
+    - [ ] 9.1 User Directory
+        - [ ] `POST /_matrix/client/v3/user_directory/search`
+    - [ ] 9.2 Profiles
+        - [ ] `GET /_matrix/client/v3/profile/{userId}`
+        - [ ] `GET /_matrix/client/v3/profile/{userId}/avatar_url`
+        - [ ] `PUT /_matrix/client/v3/profile/{userId}/avatar_url`
+        - [ ] `GET /_matrix/client/v3/profile/{userId}/displayname`
+        - [ ] `PUT /_matrix/client/v3/profile/{userId}/displayname`
+- [ ] 10 Modules
+    - [ ] 10.4 Voice over IP
+        - [ ] `GET /_matrix/client/v3/voip/turnServer`
+    - [ ] 10.5 Typing Notifications
+        - [ ] `PUT /_matrix/client/v3/rooms/{roomId}/typing/{userId}`
+    - [ ] 10.6 Receipts
+        - [ ] `POST /_matrix/client/v3/rooms/{roomId}/receipt/{receiptType}/{eventId}`
+    - [ ] 10.7 Read and unread markers
+        - [ ] `POST /_matrix/client/v3/rooms/{roomId}/read_markers`
+    - [ ] 10.8 Presence
+        - [ ] `GET /_matrix/client/v3/presence/{userId}/status`
+        - [ ] `PUT /_matrix/client/v3/presence/{userId}/status`
+    - [ ] 10.9 Content repository
+        - [ ] `GET /_matrix/client/v1/media/config`
+        - [ ] `GET /_matrix/client/v1/media/download/{serverName}/{mediaId}`
+        - [ ] `GET /_matrix/client/v1/media/download/{serverName}/{mediaId}/{fileName}`
+        - [ ] `GET /_matrix/client/v1/media/preview_url`
+        - [ ] `GET /_matrix/client/v1/media/thumbnail/{serverName}/{mediaId}`
+        - [ ] `POST /_matrix/media/v1/create`
+        - [ ] `GET /_matrix/media/v3/config` _DEPRECATED_
+        - [ ] `GET /_matrix/media/v3/download/{serverName}/{mediaId}` _DEPRECATED_
+        - [ ] `GET /_matrix/media/v3/download/{serverName}/{mediaId}/{fileName}` _DEPRECATED_
+        - [ ] `GET /_matrix/media/v3/preview_url` _DEPRECATED_
+        - [ ] `GET /_matrix/media/v3/thumbnail/{serverName}/{mediaId}` _DEPRECATED_
+        - [ ] `POST /_matrix/media/v3/upload`
+        - [ ] `PUT /_matrix/media/v3/upload/{serverName}/{mediaId}`
+    - [ ] 10.10 Send-to-Device messaging
+        - [ ] `PUT /_matrix/client/v3/sendToDevice/{eventType}/{txnId}`
+    - [ ] 10.11 Device Management
+        - [ ] `POST /_matrix/client/v3/delete_devices`
+        - [ ] `GET /_matrix/client/v3/devices`
+        - [ ] `GET /_matrix/client/v3/devices/{deviceId}`
+        - [ ] `PUT /_matrix/client/v3/devices/{deviceId}`
+        - [ ] `DELETE /_matrix/client/v3/devices/{deviceId}`
+    - [ ] 10.12 End-to-End Encryption
+        - [ ] `POST /_matrix/client/v3/keys/device_signing/upload`
+        - [ ] `POST /_matrix/client/v3/keys/signatures/upload`
+        - [ ] `GET /_matrix/client/v3/room_keys/keys`
+        - [ ] `PUT /_matrix/client/v3/room_keys/keys`
+        - [ ] `DELETE /_matrix/client/v3/room_keys/keys`
+        - [ ] `GET /_matrix/client/v3/room_keys/keys/{roomId}`
+        - [ ] `PUT /_matrix/client/v3/room_keys/keys/{roomId}`
+        - [ ] `DELETE /_matrix/client/v3/room_keys/keys/{roomId}`
+        - [ ] `GET /_matrix/client/v3/room_keys/keys/{roomId}/{sessionId}`
+        - [ ] `PUT /_matrix/client/v3/room_keys/keys/{roomId}/{sessionId}`
+        - [ ] `DELETE /_matrix/client/v3/room_keys/keys/{roomId}/{sessionId}`
+        - [ ] `GET /_matrix/client/v3/room_keys/version`
+        - [ ] `POST /_matrix/client/v3/room_keys/version`
+        - [ ] `GET /_matrix/client/v3/room_keys/version/{version}`
+        - [ ] `PUT /_matrix/client/v3/room_keys/version/{version}`
+        - [ ] `DELETE /_matrix/client/v3/room_keys/version/{version}`
+        - [ ] `GET /_matrix/client/v3/keys/changes`
+        - [ ] `POST /_matrix/client/v3/keys/claim`
+        - [ ] `POST /_matrix/client/v3/keys/query`
+        - [ ] `POST /_matrix/client/v3/keys/upload`
+    - [ ] 10.15 Push Notifications
+        - [ ] `GET /_matrix/client/v3/pushrules/`
+        - [ ] `GET /_matrix/client/v3/pushrules/global/`
+        - [ ] `GET /_matrix/client/v3/pushrules/global/{kind}/{ruleId}`
+        - [ ] `PUT /_matrix/client/v3/pushrules/global/{kind}/{ruleId}`
+        - [ ] `DELETE /_matrix/client/v3/pushrules/global/{kind}/{ruleId}`
+        - [ ] `GET /_matrix/client/v3/pushrules/global/{kind}/{ruleId}/actions`
+        - [ ] `PUT /_matrix/client/v3/pushrules/global/{kind}/{ruleId}/actions`
+        - [ ] `GET /_matrix/client/v3/pushrules/global/{kind}/{ruleId}/enabled`
+        - [ ] `PUT /_matrix/client/v3/pushrules/global/{kind}/{ruleId}/enabled`
+        - [ ] `GET /_matrix/client/v3/pushers`
+        - [ ] `POST /_matrix/client/v3/pushers/set`
+        - [ ] `GET /_matrix/client/v3/notifications`
+    - [ ] 10.16 Third-party invites
+        - [ ] `POST /_matrix/client/v3/rooms/{roomId}/invite`
+    - [ ] 10.17 Server Side Search
+        - [ ] `POST /_matrix/client/v3/search`
+    - [ ] 10.19 Room Previews
+        - [ ] `GET /_matrix/client/v3/events`
+    - [ ] 10.20 Room Tagging
+        - [ ] `GET /_matrix/client/v3/user/{userId}/rooms/{roomId}/tags`
+        - [ ] `PUT /_matrix/client/v3/user/{userId}/rooms/{roomId}/tags/{tag}`
+        - [ ] `DELETE /_matrix/client/v3/user/{userId}/rooms/{roomId}/tags/{tag}`
+    - [ ] 10.21 Client Config
+        - [ ] `GET /_matrix/client/v3/user/{userId}/account_data/{type}`
+        - [ ] `PUT /_matrix/client/v3/user/{userId}/account_data/{type}`
+        - [ ] `GET /_matrix/client/v3/user/{userId}/rooms/{roomId}/account_data/{type}`
+        - [ ] `PUT /_matrix/client/v3/user/{userId}/rooms/{roomId}/account_data/{type}`
+    - [ ] 10.22 Server Administration
+        - [ ] `GET /_matrix/client/v3/admin/whois/{userId}`
+    - [ ] 10.23 Event Context
+        - [ ] `GET /_matrix/client/v3/rooms/{roomId}/context/{eventId}`
+    - [ ] 10.24 SSO client login/authentication
+        - [ ] `GET /_matrix/client/v3/login/sso/redirect`
+        - [ ] `GET /_matrix/client/v3/login/sso/redirect/{idpId}`
+    - [ ] 10.28 Reporting Content
+        - [ ] `POST /_matrix/client/v3/rooms/{roomId}/report`
+        - [ ] `POST /_matrix/client/v3/rooms/{roomId}/report/{eventId}`
+        - [ ] `POST /_matrix/client/v3/users/{userId}/report`
+    - [ ] 10.29 Third-party Networks
+        - [ ] `GET /_matrix/client/v3/thirdparty/location`
+        - [ ] `GET /_matrix/client/v3/thirdparty/location/{protocol}`
+        - [ ] `GET /_matrix/client/v3/thirdparty/protocol/{protocol}`
+        - [ ] `GET /_matrix/client/v3/thirdparty/protocols`
+        - [ ] `GET /_matrix/client/v3/thirdparty/user`
+        - [ ] `GET /_matrix/client/v3/thirdparty/user/{protocol}`
+    - [ ] 10.30 OpenID
+        - [ ] `POST /_matrix/client/v3/user/{userId}/openid/request_token`
+    - [ ] 10.33 Room Upgrades
+        - [ ] `POST /_matrix/client/v3/rooms/{roomId}/upgrade`
+    - [ ] 10.36 Spaces
+        - [ ] `GET /_matrix/client/v1/rooms/{roomId}/hierarchy`
+    - [ ] 10.39 Threading
+        - [ ] `GET /_matrix/client/v1/rooms/{roomId}/threads`
+
+### Server-Server
+
+This checklist tracks the progress of implementing the endpoints defined in the
+[server-server spec](https://spec.matrix.org/v1.14/server-server-api/).
+
+- [ ] 2 Server discovery
+    - [ ] 2.1 Resolving server names
+        - [ ] `GET /.well-known/matrix/server`
+    - [ ] 2.2 Server implementation
+        - [ ] `GET /_matrix/federation/v1/version`
+    - [ ] 2.3 Retrieving server keys
+        - [ ] `GET /_matrix/key/v2/server`
+        - [ ] `POST /_matrix/key/v2/query`
+        - [ ] `GET /_matrix/key/v2/query/{serverName}`
+- [ ] 4 Transactions
+    - [ ] `PUT /_matrix/federation/v1/send/{txnId}`
+- [ ] 5 PDUs
+    - [ ] 5.1 Checks performed on receipt of a PDU
+        - [ ] `GET /_matrix/federation/v1/event_auth/{roomId}/{eventId}`
+- [ ] 8 Backfilling and retrieving missing events
+    - [ ] `GET /_matrix/federation/v1/backfill/{roomId}`
+    - [ ] `POST /_matrix/federation/v1/get_missing_events/{roomId}`
+- [ ] 9 Retrieving events
+    - [ ] `GET /_matrix/federation/v1/event/{eventId}`
+    - [ ] `GET /_matrix/federation/v1/state/{roomId}`
+    - [ ] `GET /_matrix/federation/v1/state_ids/{roomId}`
+    - [ ] `GET /_matrix/federation/v1/timestamp_to_event/{roomId}`
+- [ ] 10 Joining Rooms
+    - [ ] `GET /_matrix/federation/v1/make_join/{roomId}/{userId}`
+    - [ ] `PUT /_matrix/federation/v1/send_join/{roomId}/{eventId}` _DEPRECATED_
+    - [ ] `PUT /_matrix/federation/v2/send_join/{roomId}/{eventId}`
+- [ ] 11 Knocking upon a room
+    - [ ] `GET /_matrix/federation/v1/make_knock/{roomId}/{userId}`
+    - [ ] `PUT /_matrix/federation/v1/send_knock/{roomId}/{eventId}`
+- [ ] 12 Inviting to a room
+    - [ ] `PUT /_matrix/federation/v1/invite/{roomId}/{eventId}`
+    - [ ] `PUT /_matrix/federation/v2/invite/{roomId}/{eventId}`
+- [ ] 13 Leaving Rooms (Rejecting Invites)
+    - [ ] `GET /_matrix/federation/v1/make_leave/{roomId}/{userId}`
+    - [ ] `PUT /_matrix/federation/v1/send_leave/{roomId}/{eventId}` _DEPRECATED_
+    - [ ] `PUT /_matrix/federation/v2/send_leave/{roomId}/{eventId}`
+- [ ] 14 Third-party invites
+    - [ ] 14.2 Cases where an association doesn’t exist for a third-party identifier
+        - [ ] `PUT /_matrix/federation/v1/3pid/onbind`
+        - [ ] `PUT /_matrix/federation/v1/exchange_third_party_invite/{roomId}`
+- [ ] 15 Public Room Directory
+    - [ ] `GET /_matrix/federation/v1/publicRooms`
+    - [ ] `POST /_matrix/federation/v1/publicRooms`
+- [ ] 16 Spaces
+    - [ ] `GET /_matrix/federation/v1/hierarchy/{roomId}`
+- [ ] 20 Querying for information
+    - [ ] `GET /_matrix/federation/v1/query/directory`
+    - [ ] `GET /_matrix/federation/v1/query/profile`
+    - [ ] `GET /_matrix/federation/v1/query/{queryType}`
+- [ ] 21 OpenID
+    - [ ] `GET /_matrix/federation/v1/openid/userinfo`
+- [ ] 22 Device Management
+    - [ ] `GET /_matrix/federation/v1/user/devices/{userId}`
+- [ ] 23 End-to-End Encryption
+    - [ ] `POST /_matrix/federation/v1/user/keys/claim`
+    - [ ] `POST /_matrix/federation/v1/user/keys/query`
+- [ ] 25 Content Repository
+    - [ ] `GET /_matrix/federation/v1/media/download/{mediaId}`
+    - [ ] `GET /_matrix/federation/v1/media/thumbnail/{mediaId}`

@@ -34,6 +34,14 @@ lazy val spelt = (project in file("."))
       "org.apache.pekko" %% "pekko-stream" % pekkoVersion % Test,
       "org.neo4j.driver" % "neo4j-java-driver" % "5.28.5",
       "org.scalatestplus.play" %% "scalatestplus-play" % "7.0.1" % Test,
-      "org.springframework.security" % "spring-security-crypto" % "6.5.1"
-    )
+      "org.springframework.security" % "spring-security-crypto" % "6.5.1",
+    ),
+  )
+
+lazy val outliner = (project in file("outliner"))
+  .settings(
+    name := "Outliner",
+    libraryDependencies ++= Seq(
+      "net.ruippeixotog" %% "scala-scraper" % "3.2.0",
+    ),
   )
