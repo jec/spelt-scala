@@ -74,19 +74,19 @@ object UserStore:
           replyTo ! CreateUserResponse(Left(error))
 
   /**
-   * Looks up a user by `identifier` and responds with `Some(user)`; else  `None`
+   * Looks up a user by `identifier` and responds with `Some(user)`; else `None`
    *
    * @param identifier username to look up
    * @param replyTo Actor that receives response
    */
   private def read(identifier: String, replyTo: ActorRef[Response]): Unit =
     c"MATCH (u:User) WHERE u.identifier = $identifier RETURN u"
-      .query(ResultMapper.option(ResultMapper.productDerive[User]))
-      .single(Database.driver)
+      .query(ResultMapper.productDerive[User])
+      .list(Database.driver)
       .onComplete:
-        case Success(Some(user: User)) =>
+        case Success(user :: _) =>
           replyTo ! GetUserResponse(Right(Some(user)))
-        case Success(None) =>
+        case Success(Nil) =>
           replyTo ! GetUserResponse(Right(None))
         case Failure(error) =>
           replyTo ! GetUserResponse(Left(error))

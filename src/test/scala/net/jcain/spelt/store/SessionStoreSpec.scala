@@ -69,6 +69,51 @@ class SessionStoreSpec extends ScalaTestWithActorTestKit with AnyWordSpecLike wi
         }
       }
     }
+
+    "Previous session not found" should {
+      "respond with SessionCreated with the same device ID and a new token" in {
+        // Create User.
+        val userRepo = testKit.spawn(UserStore())
+        val userProbe = testKit.createTestProbe[UserStore.Response]()
+
+        userRepo ! UserStore.CreateUser("phred", "secret", "phred@example.com", userProbe.ref)
+        userProbe.expectMessageType[UserStore.Response] should matchPattern {
+          case UserStore.CreateUserResponse(Right(_)) =>
+        }
+
+        // Send message and check response.
+        val repo = testKit.spawn(SessionStore())
+        val probe = testKit.createTestProbe[SessionStore.Response]()
+
+        repo ! SessionStore.GetOrCreateSession("phred", Some("foo"), None, probe.ref)
+
+        inside(probe.expectMessageType[SessionStore.Response]) {
+          case SessionStore.SessionCreated(token, deviceId) =>
+            UUID.fromString(deviceId) shouldBe a [UUID]
+
+            Token.verify(token) should matchPattern {
+              case Right(_) =>
+            }
+
+            repo ! SessionStore.ValidateToken(token, probe.ref)
+            probe.expectMessage(SessionStore.TokenValid)
+        }
+      }
+    }
+
+    "User not found" should {
+      "respond with UserNotFound" in {
+        // Send message and check response.
+        val repo = testKit.spawn(SessionStore())
+        val probe = testKit.createTestProbe[SessionStore.Response]()
+
+        repo ! SessionStore.GetOrCreateSession("phred", None, None, probe.ref)
+
+        inside(probe.expectMessageType[SessionStore.Response]) {
+          case SessionStore.UserNotFound =>
+        }
+      }
+    }
   }
 
   "ValidateToken" when {

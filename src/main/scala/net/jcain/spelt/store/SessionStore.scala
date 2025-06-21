@@ -1,7 +1,6 @@
 package net.jcain.spelt.store
 
 import neotypes.mappers.ResultMapper
-import neotypes.model.query.QueryParam
 import neotypes.syntax.all.*
 import net.jcain.spelt.models.Database
 import net.jcain.spelt.service.Token
@@ -41,6 +40,7 @@ object SessionStore {
 
   sealed trait Response
   final case class SessionCreated(token: String, deviceId: String) extends Response
+  object UserNotFound extends Response
   final case class SessionFailed(error: Throwable) extends Response
   object TokenValid extends Response
   final case class TokenInvalid(error: Throwable) extends Response
@@ -85,16 +85,12 @@ object SessionStore {
       AND s.deviceId = $deviceId
       RETURN s.uuid
     """
-      .query(ResultMapper.option(ResultMapper.string))
-      .withParams(Map(
-        "identifier" -> QueryParam(identifier),
-        "deviceId" -> QueryParam(deviceId)
-      ))
-      .single(Database.driver)
+      .query(ResultMapper.string)
+      .list(Database.driver)
       .onComplete:
-        case Success(Some(uuid)) =>
+        case Success(uuid :: _) =>
           updateSession(uuid, replyTo)
-        case Success(None) =>
+        case Success(Nil) =>
           createSession(identifier, deviceName, replyTo)
         case Failure(error) =>
           replyTo ! SessionFailed(error)
@@ -125,28 +121,29 @@ object SessionStore {
       RETURN s.deviceId
     """
       .query(ResultMapper.string)
-      .withParams(Map(
-        "identifier" -> QueryParam(identifier),
-        "uuid" -> QueryParam(uuid),
-        "deviceId" -> QueryParam(deviceId),
-        "token" -> QueryParam(token),
-        "deviceName" -> QueryParam(deviceName.getOrElse(""))
-      ))
-      .single(Database.driver)
+      .list(Database.driver)
       .onComplete:
-        case Success(deviceId) =>
+        case Success(deviceId :: _) =>
           replyTo ! SessionCreated(token, deviceId)
+        case Success(Nil) =>
+          replyTo ! UserNotFound
         case Failure(error) =>
           replyTo ! SessionFailed(error)
 
   /**
-   * Updates an existing Session with a new token and sends a SessionCreated message to the requesting Actor
+   * Updates an existing Session with a new token
+   *
+   * On success, it sends a SessionCreated message to the requesting Actor.
    *
    * @param uuid Session UUID
    * @param replyTo requesting Actor
    */
   private def updateSession(uuid: String, replyTo: ActorRef[Response]): Unit =
     val token = Token.generateAndSign(uuid)
+
+    // The call to `single()` will error if the Session isn't found, but since this method is
+    // called immediately after a successful lookup of the Session, that should never happen. If it
+    // does, then it's truly an exceptional condition.
 
     c"""
       MATCH (s:Session)
@@ -156,10 +153,6 @@ object SessionStore {
       RETURN s.deviceId
     """
       .query(ResultMapper.string)
-      .withParams(Map(
-        "uuid" -> QueryParam(uuid),
-        "token" -> QueryParam(token)
-      ))
       .single(Database.driver)
       .onComplete:
         case Success(deviceId) =>
@@ -184,7 +177,6 @@ object SessionStore {
         // Look up Session by Uuid
         c"MATCH (s:Session) WHERE s.uuid = $uuid RETURN count(s)"
           .query(ResultMapper.int)
-          .withParams(Map("uuid" -> QueryParam(uuid)))
           .single(Database.driver)
           .onComplete:
             case Success(1) =>
