@@ -7,7 +7,7 @@ import play.api.libs.json.{JsValue, Json}
 object Config {
   private val base: config.Config = ConfigFactory.load()
   val database: config.Config = base.getConfig("database")
-  val versions: Seq[String] = Seq("1.2")
+  val versions: Seq[String] = Seq("1.14")
   val jwtIssuer: String = base.getString("jwt.issuer")
 
   val homeserverUrl: String = Config.base.getString("server.base_url")

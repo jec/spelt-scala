@@ -3,5 +3,5 @@ GET     /_matrix/client/versions    net.jcain.spelt.controllers.ConfigController
 GET     /.well-known/matrix/client  net.jcain.spelt.controllers.ConfigController.wellKnown()
 
 # Authentication and session
-GET     /_matrix/client/v3/login    net.jcain.spelt.controllers.LoginController.show()
-POST    /_matrix/client/v3/login    net.jcain.spelt.controllers.LoginController.create()
+GET     /_matrix/client/v3/login    net.jcain.spelt.controllers.LoginController.loginTypes()
+POST    /_matrix/client/v3/login    net.jcain.spelt.controllers.LoginController.logIn()

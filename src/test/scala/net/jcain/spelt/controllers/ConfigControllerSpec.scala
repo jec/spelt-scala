@@ -16,7 +16,7 @@ class ConfigControllerSpec extends PlaySpec with GuiceOneAppPerTest with Injecti
 
       val parsedBody = contentAsJson(response)
 
-      (parsedBody \ "versions") must equal (JsDefined(JsArray(Seq(JsString("1.2")))))
+      (parsedBody \ "versions") must equal (JsDefined(JsArray(Seq(JsString("1.14")))))
     }
   }
 

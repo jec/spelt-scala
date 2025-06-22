@@ -10,19 +10,24 @@ class LoginController @Inject()(val controllerComponents: ControllerComponents) 
   /**
    * GET /_matrix/client/v3/login
    *
-   * Returns the supported login types
+   * Returns the supported login flows
+   *
+   * Currently, the only supported login flow is "m.login.password".
+   *
+   * See https://spec.matrix.org/v1.14/client-server-api/#get_matrixclientv3login
    */
-  def show(): Action[AnyContent] = Action {
+  def loginTypes(): Action[AnyContent] = Action {
     Ok(Json.obj("flows" -> Json.arr(Json.obj("type" -> "m.login.password"))))
   }
 
   /**
    * POST /_matrix/client/v3/login
    *
-   * Creates a Session and returns a JWT for authenticating subsequent API
-   * requests
+   * Authenticates a user and, if successful, responds with a token
+   *
+   * See https://spec.matrix.org/v1.14/client-server-api/#post_matrixclientv3login
    */
-  def create(): Action[JsValue] = Action(parse.json) { implicit request: Request[JsValue] =>
+  def logIn(): Action[JsValue] = Action(parse.json) { implicit request: Request[JsValue] =>
 //    auth ! Auth.LogIn(request.body.asJson.get, self.ref)
 //    Auth.logIn(request.body.asJson.get) match {
 //      case Auth.Success(userId, jwt, deviceId) =>

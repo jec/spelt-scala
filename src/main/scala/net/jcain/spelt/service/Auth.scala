@@ -65,15 +65,15 @@ object Auth {
    *
    * @return the subsequent Behaviors
    */
-  def apply(userRepo: ActorRef[UserStore.Request], sessionRepo: ActorRef[SessionStore.Request]): Behavior[Request] =
+  def apply(userStore: ActorRef[UserStore.Request], sessionStore: ActorRef[SessionStore.Request]): Behavior[Request] =
     Behaviors.setup { context =>
       Behaviors.receiveMessage {
         case LogIn(parsedParams, replyTo) =>
-          requestUser(parsedParams, context, userRepo, replyTo)
+          requestUser(parsedParams, context, userStore, replyTo)
           Behaviors.same
 
         case UserFound(user, password, deviceIdOption, deviceNameOption, replyTo) =>
-          requestSession(user, password, deviceIdOption, deviceNameOption, context, sessionRepo, replyTo)
+          requestSession(user, password, deviceIdOption, deviceNameOption, context, sessionStore, replyTo)
           Behaviors.same
 
         case UserNotFound(_, replyTo) =>
@@ -114,7 +114,8 @@ object Auth {
   }
 
   /**
-   * Receives the payload of the HTTP login request and sends a message to the UserRepo to retrieve the User record
+   * Receives the payload of the HTTP login request and sends a message to the UserStore to retrieve
+   * the User record
    *
    * @param parsedParams payload of HTTP login request
    * @param context Actor context
@@ -122,7 +123,7 @@ object Auth {
    */
   private def requestUser(parsedParams: JsValue,
                           context: ActorContext[Request],
-                          userRepo: ActorRef[UserStore.Request],
+                          userStore: ActorRef[UserStore.Request],
                           replyTo: ActorRef[Response]): Unit =
     parsedParams.validate[PasswordLogin] match {
       case JsSuccess(PasswordLogin(
@@ -134,8 +135,8 @@ object Auth {
       ), _) =>
         implicit val timeout: Timeout = 3.seconds
 
-        // Ask UserRepo for the User and translate response to an Auth.Request.
-        context.ask(userRepo, ref => UserStore.GetUser(username, ref)) {
+        // Ask UserStore for the User and translate response to an Auth.Request.
+        context.ask(userStore, ref => UserStore.GetUser(username, ref)) {
           case Success(UserStore.GetUserResponse(Right(Some(user)))) => UserFound(user, password, deviceIdOption, deviceNameOption, replyTo)
           case Success(UserStore.GetUserResponse(Right(None))) => UserNotFound(username, replyTo)
           case Success(_) => OtherFailure("unreachable", replyTo)
@@ -147,10 +148,10 @@ object Auth {
     }
 
   /**
-   * Processes a successful response from the UserRepo and verifies the password
+   * Processes a successful response from the UserStore and verifies the password
    *
-   * If the password matches, a message is sent to the SessionRepo to create a Session. Else a failure message is sent
-   * to the original requesting Actor.
+   * If the password matches, a message is sent to the SessionStore to create a Session. Else a
+   * failure message is sent to the original requesting Actor.
    *
    * @param user matching User record
    * @param password password from the login request
@@ -162,12 +163,12 @@ object Auth {
                              deviceIdOption: Option[String],
                              deviceNameOption: Option[String],
                              context: ActorContext[Request],
-                             sessionRepo: ActorRef[SessionStore.Request],
+                             sessionStore: ActorRef[SessionStore.Request],
                              replyTo: ActorRef[Response]): Unit = {
     implicit val timeout: Timeout = 3.seconds
 
     if (passwordMatches(user.encryptedPassword, password)) {
-      context.ask(sessionRepo, ref => SessionStore.GetOrCreateSession(user.identifier, deviceIdOption, deviceNameOption, ref)) {
+      context.ask(sessionStore, ref => SessionStore.GetOrCreateSession(user.identifier, deviceIdOption, deviceNameOption, ref)) {
         case Success(SessionStore.SessionCreated(token, deviceId)) => SessionCreated(user.identifier, token, deviceId, replyTo)
         case Success(SessionStore.SessionFailed(error)) => OtherFailure(error.getMessage, replyTo)
         case Success(_) => OtherFailure("unreachable", replyTo)

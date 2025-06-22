@@ -38,27 +38,27 @@ class AuthSpec extends ScalaTestWithActorTestKit with AnyWordSpecLike with Match
   "LogIn" when {
     "credentials are valid" should {
       "respond with Auth.Succeeded" in new LoginRequestParams {
-        private val userRepoProbe = testKit.createTestProbe[UserStore.Request]()
-        private val sessionRepoProbe = testKit.createTestProbe[SessionStore.Request]()
-        private val auth = testKit.spawn(Auth(userRepoProbe.ref, sessionRepoProbe.ref))
+        private val userStoreProbe = testKit.createTestProbe[UserStore.Request]()
+        private val sessionStoreProbe = testKit.createTestProbe[SessionStore.Request]()
+        private val auth = testKit.spawn(Auth(userStoreProbe.ref, sessionStoreProbe.ref))
 
         // Send LogIn message to Auth.
         private val probe = testKit.createTestProbe[Auth.Response]()
         auth ! Auth.LogIn(parsedParams, probe.ref)
 
-        // Expect UserRepo to receive GetUser; respond with CreateUserResponse.
-        inside(userRepoProbe.expectMessageType[UserStore.Request]) {
+        // Expect UserStore to receive GetUser; respond with CreateUserResponse.
+        inside(userStoreProbe.expectMessageType[UserStore.Request]) {
           case UserStore.GetUser(username, replyTo) =>
             username shouldEqual existingUser.identifier
             replyTo ! UserStore.GetUserResponse(Right(Some(existingUser)))
         }
 
-        // Create a UUID and JWT that the SessionRepo would create upon success.
+        // Create a UUID and JWT that the SessionStore would create upon success.
         private val sessionUuid: String = UUID.randomUUID.toString
         private val token = Token.generateAndSign(sessionUuid)
 
-        // Expect SessionRepo to receive GetOrCreateSession; respond with SessionCreated.
-        inside(sessionRepoProbe.expectMessageType[SessionStore.Request]) {
+        // Expect SessionStore to receive GetOrCreateSession; respond with SessionCreated.
+        inside(sessionStoreProbe.expectMessageType[SessionStore.Request]) {
           case SessionStore.GetOrCreateSession(username, deviceId, deviceName, replyTo) =>
             username shouldEqual existingUser.identifier
             deviceId shouldEqual Some(requestDeviceId)
