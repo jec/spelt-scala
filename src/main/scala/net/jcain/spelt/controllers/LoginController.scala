@@ -45,11 +45,11 @@ class LoginController @Inject() (
 
     authRef.ask(ref => Auth.LogIn(body, ref))
       .map {
-        case Auth.LoginSucceeded(identifier, token, deviceId) =>
+        case Auth.LoginSucceeded(name, token, deviceId) =>
           Ok(Json.obj(
             "access_token" -> JsString(token),
             "device_id" -> JsString(deviceId),
-            "user_id" -> JsString(identifier),
+            "user_id" -> JsString(name),
             "well_known" -> Config.wellKnown
           ))
 

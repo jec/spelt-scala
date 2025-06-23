@@ -15,7 +15,7 @@ import scala.util.{Failure, Success}
  * An Actor that implements the CRUD operations for Session nodes
  *
  * Messages it receives:
- * * GetOrCreateSession -- gets (if `identifier` and `deviceId` are found) or creates a Session node
+ * * GetOrCreateSession -- gets (if `name` and `deviceId` are found) or creates a Session node
  *   Responses:
  *   * SessionCreated -- includes a JWT and a (possibly new) deviceId
  *   * SessionFailed -- includes a Throwable
@@ -32,7 +32,7 @@ import scala.util.{Failure, Success}
  */
 object SessionStore {
   sealed trait Request
-  final case class GetOrCreateSession(identifier: String,
+  final case class GetOrCreateSession(name: String,
                                       deviceId: Option[String],
                                       deviceName: Option[String],
                                       replyTo: ActorRef[Response]) extends Request
@@ -51,15 +51,15 @@ object SessionStore {
    * @return subsequent Behaviors
    */
   def apply(): Behavior[Request] = Behaviors.receiveMessage {
-    case GetOrCreateSession(identifier, deviceIdOption, deviceNameOption, replyTo) =>
+    case GetOrCreateSession(name, deviceIdOption, deviceNameOption, replyTo) =>
       deviceIdOption match {
         // If deviceId isn't specified, create a new Session.
         case None =>
-          createSession(identifier, deviceNameOption, replyTo)
+          createSession(name, deviceNameOption, replyTo)
 
         // Else look up Session.
         case Some(deviceId) =>
-          readByDevice(identifier, deviceId, deviceNameOption, replyTo)
+          readByDevice(name, deviceId, deviceNameOption, replyTo)
       }
 
       Behaviors.same
@@ -70,18 +70,18 @@ object SessionStore {
   }
 
   /**
-   * Looks up Session by `identifier` and `deviceId`; if found then updates that Session with a new token; else creates
+   * Looks up Session by `name` and `deviceId`; if found then updates that Session with a new token; else creates
    * a new Session
    *
-   * @param identifier user name
+   * @param name username
    * @param deviceId a pre-existing device ID (optional)
    * @param deviceName a device name to use (optional)
    * @param replyTo requesting Actor
    */
-  private def readByDevice(identifier: String, deviceId: String, deviceName: Option[String], replyTo: ActorRef[Response]): Unit =
+  private def readByDevice(name: String, deviceId: String, deviceName: Option[String], replyTo: ActorRef[Response]): Unit =
     c"""
       MATCH (u:User)-[AUTHENTICATED_AS]->(s:Session)
-      WHERE u.identifier = $identifier
+      WHERE u.name = $name
       AND s.deviceId = $deviceId
       RETURN s.uuid
     """
@@ -91,7 +91,7 @@ object SessionStore {
         case Success(uuid :: _) =>
           updateSession(uuid, replyTo)
         case Success(Nil) =>
-          createSession(identifier, deviceName, replyTo)
+          createSession(name, deviceName, replyTo)
         case Failure(error) =>
           replyTo ! SessionFailed(error)
 
@@ -100,18 +100,18 @@ object SessionStore {
    *
    * On successful creation, it sends a SessionCreated message to the requesting Actor.
    *
-   * @param identifier user name
+   * @param name username
    * @param deviceName device name
    * @param replyTo requesting Actor
    */
-  private def createSession(identifier: String, deviceName: Option[String], replyTo: ActorRef[Response]): Unit =
+  private def createSession(name: String, deviceName: Option[String], replyTo: ActorRef[Response]): Unit =
     val uuid = UUID.randomUUID.toString
     val deviceId = UUID.randomUUID.toString
     val token = Token.generateAndSign(uuid)
 
     c"""
       MATCH (u:User)
-      WHERE u.identifier = $identifier
+      WHERE u.name = $name
       CREATE (u)-[:AUTHENTICATED_AS]->(s:Session {
         uuid: $uuid,
         deviceId: $deviceId,

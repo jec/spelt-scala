@@ -25,12 +25,12 @@ class LoginControllerSpec extends PlaySpec with GuiceOneAppPerTest with Injectin
     private val userStore = testKit.spawn(UserStore())
     private val userStoreProbe = testKit.createTestProbe[UserStore.Response]()
     userStore ! UserStore.CreateUser(
-      existingUser.identifier,
+      existingUser.name,
       existingPassword,
       existingUser.email,
       userStoreProbe.ref
     )
-    userStoreProbe.expectMessage(UserStore.CreateUserResponse(Right(existingUser.identifier)))
+    userStoreProbe.expectMessage(UserStore.CreateUserResponse(Right(existingUser.name)))
   }
 
   trait LoginRequestParams extends ExistingUser {
@@ -39,7 +39,7 @@ class LoginControllerSpec extends PlaySpec with GuiceOneAppPerTest with Injectin
 
     val identifierJson: JsObject = Json.obj(
       "type" -> "m.id.user",
-      "user" -> existingUser.identifier
+      "user" -> existingUser.name
     )
 
     val parsedParams: JsObject = Json.obj(
@@ -89,7 +89,7 @@ class LoginControllerSpec extends PlaySpec with GuiceOneAppPerTest with Injectin
           case JsSuccess(LoginResponse(jwt, deviceId, userId, WellKnown(homeUrl, idUrl)), _) =>
             // TODO: Implement Device model so this passes.
             // deviceId must equal (requestDeviceId)
-            userId must equal (existingUser.identifier)
+            userId must equal (existingUser.name)
             homeUrl must equal (Config.homeserverUrl)
             idUrl must equal (Config.identityUrl)
         }

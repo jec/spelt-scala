@@ -31,12 +31,12 @@ object Auth extends ActorModule {
   sealed trait Request
   final case class LogIn(parsedParams: JsValue, replyTo: ActorRef[Response]) extends Request
   private case class UserFound(user: User, password: String, deviceIdOption: Option[String], deviceNameOption: Option[String], replyTo: ActorRef[Response]) extends Request
-  private case class UserNotFound(identifier: String, replyTo: ActorRef[Response]) extends Request
+  private case class UserNotFound(name: String, replyTo: ActorRef[Response]) extends Request
   private case class OtherFailure(message: String, replyTo: ActorRef[Response]) extends Request
-  private case class SessionCreated(identifier: String, token: String, deviceId: String, replyTo: ActorRef[Response]) extends Request
+  private case class SessionCreated(name: String, token: String, deviceId: String, replyTo: ActorRef[Response]) extends Request
 
   sealed trait Response
-  final case class LoginSucceeded(identifier: String, token: String, deviceId: String) extends Response
+  final case class LoginSucceeded(name: String, token: String, deviceId: String) extends Response
   final case class LoginFailed(message: String) extends Response
 
   // JSON classes
@@ -88,8 +88,8 @@ object Auth extends ActorModule {
           replyTo ! LoginFailed("Username or password mismatch")
           Behaviors.same
 
-        case SessionCreated(identifier, token, deviceId, replyTo) =>
-          replyTo ! LoginSucceeded(identifier, token, deviceId)
+        case SessionCreated(name, token, deviceId, replyTo) =>
+          replyTo ! LoginSucceeded(name, token, deviceId)
           Behaviors.same
 
         case OtherFailure(message, replyTo) =>
@@ -176,8 +176,8 @@ object Auth extends ActorModule {
     implicit val timeout: Timeout = 3.seconds
 
     if (passwordMatches(user.encryptedPassword, password)) {
-      context.ask(sessionStore, ref => SessionStore.GetOrCreateSession(user.identifier, deviceIdOption, deviceNameOption, ref)) {
-        case Success(SessionStore.SessionCreated(token, deviceId)) => SessionCreated(user.identifier, token, deviceId, replyTo)
+      context.ask(sessionStore, ref => SessionStore.GetOrCreateSession(user.name, deviceIdOption, deviceNameOption, ref)) {
+        case Success(SessionStore.SessionCreated(token, deviceId)) => SessionCreated(user.name, token, deviceId, replyTo)
         case Success(SessionStore.SessionFailed(error)) => OtherFailure(error.getMessage, replyTo)
         case Success(_) => OtherFailure("unreachable", replyTo)
         case Failure(error) => OtherFailure(error.getMessage, replyTo)

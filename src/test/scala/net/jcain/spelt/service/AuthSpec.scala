@@ -23,7 +23,7 @@ class AuthSpec extends ScalaTestWithActorTestKit with AnyWordSpecLike with Match
 
     val identifierJson: JsObject = Json.obj(
       "type" -> "m.id.user",
-      "user" -> existingUser.identifier
+      "user" -> existingUser.name
     )
 
     val parsedParams: JsObject = Json.obj(
@@ -49,7 +49,7 @@ class AuthSpec extends ScalaTestWithActorTestKit with AnyWordSpecLike with Match
         // Expect UserStore to receive GetUser; respond with CreateUserResponse.
         inside(userStoreProbe.expectMessageType[UserStore.Request]) {
           case UserStore.GetUser(username, replyTo) =>
-            username shouldEqual existingUser.identifier
+            username shouldEqual existingUser.name
             replyTo ! UserStore.GetUserResponse(Right(Some(existingUser)))
         }
 
@@ -60,7 +60,7 @@ class AuthSpec extends ScalaTestWithActorTestKit with AnyWordSpecLike with Match
         // Expect SessionStore to receive GetOrCreateSession; respond with SessionCreated.
         inside(sessionStoreProbe.expectMessageType[SessionStore.Request]) {
           case SessionStore.GetOrCreateSession(username, deviceId, deviceName, replyTo) =>
-            username shouldEqual existingUser.identifier
+            username shouldEqual existingUser.name
             deviceId shouldEqual Some(requestDeviceId)
             deviceName shouldEqual Some(requestDeviceName)
 
@@ -70,7 +70,7 @@ class AuthSpec extends ScalaTestWithActorTestKit with AnyWordSpecLike with Match
         // Expect Auth to respond with LoginSucceeded.
         inside(probe.expectMessageType[Auth.Response]) {
           case Auth.LoginSucceeded(username, receivedToken, deviceId) =>
-            username shouldEqual existingUser.identifier
+            username shouldEqual existingUser.name
             receivedToken shouldEqual token
             deviceId shouldEqual requestDeviceId
         }

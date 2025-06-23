@@ -13,7 +13,7 @@ import scala.concurrent.duration.DurationInt
 class UserStoreSpec extends ScalaTestWithActorTestKit with AnyWordSpecLike with Matchers with DatabaseRollback {
   "CreateUser" when {
     "user does not exist" should {
-      "create the User and return its identifier" in {
+      "create the User and return its name" in {
         val repo = testKit.spawn(UserStore())
         val probe = testKit.createTestProbe[UserStore.Response]()
 
