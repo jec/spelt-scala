@@ -7,7 +7,7 @@ import play.api.mvc.{Action, AnyContent, BaseController, ControllerComponents, R
 import javax.inject.{Inject, Singleton}
 
 @Singleton
-class ConfigController @Inject()(val controllerComponents: ControllerComponents) extends BaseController {
+class ConfigController @Inject() (val controllerComponents: ControllerComponents) extends BaseController {
   /**
    * GET /_matrix/client/versions
    *

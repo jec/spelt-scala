@@ -1,15 +1,18 @@
 package net.jcain.spelt.service
 
+import com.google.inject.Provides
 import net.jcain.spelt.models.User
 import net.jcain.spelt.store.{SessionStore, UserStore}
 import org.apache.pekko.actor.typed.scaladsl.{ActorContext, Behaviors}
 import org.apache.pekko.actor.typed.{ActorRef, Behavior}
 import org.apache.pekko.util.Timeout
 import org.springframework.security.crypto.argon2.Argon2PasswordEncoder
+import play.api.libs.concurrent.ActorModule
 import play.api.libs.functional.syntax.toFunctionalBuilderOps
 import play.api.libs.json.*
 import play.api.libs.json.Reads.*
 
+import javax.inject.{Inject, Named}
 import scala.concurrent.duration.DurationInt
 import scala.util.{Failure, Success}
 
@@ -22,7 +25,9 @@ import scala.util.{Failure, Success}
  *   * LoginSucceeded
  *   * LoginFailed
  */
-object Auth {
+object Auth extends ActorModule {
+  type Message = Request
+
   // Actor messages
   sealed trait Request
   final case class LogIn(parsedParams: JsValue, replyTo: ActorRef[Response]) extends Request
@@ -65,7 +70,11 @@ object Auth {
    *
    * @return the subsequent Behaviors
    */
-  def apply(userStore: ActorRef[UserStore.Request], sessionStore: ActorRef[SessionStore.Request]): Behavior[Request] =
+  @Provides
+  def apply(
+    @Named("UserStoreActor") userStore: ActorRef[UserStore.Request],
+    @Named("SessionStoreActor") sessionStore: ActorRef[SessionStore.Request]
+  ): Behavior[Request] =
     Behaviors.setup { context =>
       Behaviors.receiveMessage {
         case LogIn(parsedParams, replyTo) =>
