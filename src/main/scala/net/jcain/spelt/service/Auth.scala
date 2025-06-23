@@ -12,7 +12,6 @@ import play.api.libs.functional.syntax.toFunctionalBuilderOps
 import play.api.libs.json.*
 import play.api.libs.json.Reads.*
 
-import javax.inject.{Inject, Named}
 import scala.concurrent.duration.DurationInt
 import scala.util.{Failure, Success}
 
@@ -72,8 +71,8 @@ object Auth extends ActorModule {
    */
   @Provides
   def apply(
-    @Named("UserStoreActor") userStore: ActorRef[UserStore.Request],
-    @Named("SessionStoreActor") sessionStore: ActorRef[SessionStore.Request]
+    userStore: ActorRef[UserStore.Request],
+    sessionStore: ActorRef[SessionStore.Request]
   ): Behavior[Request] =
     Behaviors.setup { context =>
       Behaviors.receiveMessage {
