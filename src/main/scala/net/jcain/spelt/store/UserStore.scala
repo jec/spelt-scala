@@ -4,6 +4,7 @@ import neotypes.generic.implicits.*
 import neotypes.mappers.ResultMapper
 import neotypes.syntax.all.*
 import net.jcain.spelt.models.{Database, User}
+import net.jcain.spelt.service.Auth
 import org.apache.pekko.actor.typed.scaladsl.Behaviors
 import org.apache.pekko.actor.typed.{ActorRef, Behavior}
 
@@ -64,7 +65,9 @@ object UserStore:
    * @param replyTo Actor that receives response
    */
   private def create(identifier: String, password: String, email: String, replyTo: ActorRef[Response]): Unit =
-    c"CREATE (u:User { identifier: $identifier, encryptedPassword: $password, email: $email }) RETURN u.identifier"
+    val encryptedPassword = Auth.argon2Encoder.encode(password)
+
+    c"CREATE (u:User { identifier: $identifier, encryptedPassword: $encryptedPassword, email: $email }) RETURN u.identifier"
       .query(ResultMapper.string)
       .single(Database.driver)
       .onComplete:
