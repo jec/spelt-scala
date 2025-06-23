@@ -35,18 +35,18 @@ object Token {
     .build
 
   /**
-   * Generates a JWT for the Session `uuid`
+   * Generates a JWT for the Session `ulid`
    *
-   * @param uuid Session UUID
+   * @param ulid Session ULID
    *
    * @return JWT for authentication
    */
-  def generateAndSign(uuid: String): String = {
+  def generateAndSign(ulid: String): String = {
     val now = java.time.Instant.now
 
     JWT.create()
       .withIssuer(Config.jwtIssuer)
-      .withSubject(uuid)
+      .withSubject(ulid)
       .withIssuedAt(now)
       .withExpiresAt(now.plusSeconds(3600))
       .sign(algorithm)

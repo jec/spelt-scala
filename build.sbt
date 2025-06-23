@@ -35,6 +35,7 @@ lazy val spelt = (project in file("."))
       "org.neo4j.driver" % "neo4j-java-driver" % "5.28.5",
       "org.scalatestplus.play" %% "scalatestplus-play" % "7.0.1" % Test,
       "org.springframework.security" % "spring-security-crypto" % "6.5.1",
+      "org.wvlet.airframe" %% "airframe-ulid" % "2025.1.14",
     ),
   )
 

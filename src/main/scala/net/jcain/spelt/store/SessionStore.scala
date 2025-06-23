@@ -7,7 +7,7 @@ import net.jcain.spelt.service.Token
 import org.apache.pekko.actor.typed.scaladsl.Behaviors
 import org.apache.pekko.actor.typed.{ActorRef, Behavior}
 
-import java.util.UUID
+import wvlet.airframe.ulid.ULID
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.util.{Failure, Success}
 
@@ -73,25 +73,25 @@ object SessionStore {
    * Looks up Session by `name` and `deviceId`; if found then updates that Session with a new token; else creates
    * a new Session
    *
-   * @param name username
+   * @param username username
    * @param deviceId a pre-existing device ID (optional)
    * @param deviceName a device name to use (optional)
    * @param replyTo requesting Actor
    */
-  private def readByDevice(name: String, deviceId: String, deviceName: Option[String], replyTo: ActorRef[Response]): Unit =
+  private def readByDevice(username: String, deviceId: String, deviceName: Option[String], replyTo: ActorRef[Response]): Unit =
     c"""
       MATCH (u:User)-[AUTHENTICATED_AS]->(s:Session)
-      WHERE u.name = $name
+      WHERE u.name = $username
       AND s.deviceId = $deviceId
-      RETURN s.uuid
+      RETURN s.ulid
     """
       .query(ResultMapper.string)
       .list(Database.driver)
       .onComplete:
-        case Success(uuid :: _) =>
-          updateSession(uuid, replyTo)
+        case Success(ulid :: _) =>
+          updateSession(ulid, replyTo)
         case Success(Nil) =>
-          createSession(name, deviceName, replyTo)
+          createSession(username, deviceName, replyTo)
         case Failure(error) =>
           replyTo ! SessionFailed(error)
 
@@ -105,15 +105,15 @@ object SessionStore {
    * @param replyTo requesting Actor
    */
   private def createSession(name: String, deviceName: Option[String], replyTo: ActorRef[Response]): Unit =
-    val uuid = UUID.randomUUID.toString
-    val deviceId = UUID.randomUUID.toString
-    val token = Token.generateAndSign(uuid)
+    val ulid = ULID.newULIDString
+    val deviceId = ULID.newULIDString
+    val token = Token.generateAndSign(ulid)
 
     c"""
       MATCH (u:User)
       WHERE u.name = $name
       CREATE (u)-[:AUTHENTICATED_AS]->(s:Session {
-        uuid: $uuid,
+        ulid: $ulid,
         deviceId: $deviceId,
         token: $token,
         deviceName: $deviceName
@@ -135,11 +135,11 @@ object SessionStore {
    *
    * On success, it sends a SessionCreated message to the requesting Actor.
    *
-   * @param uuid Session UUID
+   * @param ulid Session ULID
    * @param replyTo requesting Actor
    */
-  private def updateSession(uuid: String, replyTo: ActorRef[Response]): Unit =
-    val token = Token.generateAndSign(uuid)
+  private def updateSession(ulid: String, replyTo: ActorRef[Response]): Unit =
+    val token = Token.generateAndSign(ulid)
 
     // The call to `single()` will error if the Session isn't found, but since this method is
     // called immediately after a successful lookup of the Session, that should never happen. If it
@@ -147,7 +147,7 @@ object SessionStore {
 
     c"""
       MATCH (s:Session)
-      WHERE s.uuid = $uuid
+      WHERE s.ulid = $ulid
       WITH s
       SET s.token = $token
       RETURN s.deviceId
@@ -172,10 +172,10 @@ object SessionStore {
         replyTo ! TokenInvalid(error)
 
       case Right(decodedJwt) =>
-        val uuid = decodedJwt.getSubject
+        val ulid = decodedJwt.getSubject
 
-        // Look up Session by Uuid
-        c"MATCH (s:Session) WHERE s.uuid = $uuid RETURN count(s)"
+        // Look up Session by ULID
+        c"MATCH (s:Session) WHERE s.ulid = $ulid RETURN count(s)"
           .query(ResultMapper.int)
           .single(Database.driver)
           .onComplete:

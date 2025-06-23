@@ -6,8 +6,7 @@ import org.apache.pekko.actor.testkit.typed.scaladsl.ScalaTestWithActorTestKit
 import org.scalatest.Inside.inside
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
-
-import java.util.UUID
+import wvlet.airframe.ulid.ULID
 
 class SessionStoreSpec extends ScalaTestWithActorTestKit with AnyWordSpecLike with Matchers with DatabaseRollback {
   "GetOrCreateSession" when {
@@ -30,7 +29,7 @@ class SessionStoreSpec extends ScalaTestWithActorTestKit with AnyWordSpecLike wi
 
         inside(probe.expectMessageType[SessionStore.Response]) {
           case SessionStore.SessionCreated(token, deviceId) =>
-            UUID.fromString(deviceId) shouldBe a [UUID]
+            ULID.fromString(deviceId) shouldBe a [ULID]
 
             Token.verify(token) should matchPattern {
               case Right(_) =>
@@ -89,7 +88,7 @@ class SessionStoreSpec extends ScalaTestWithActorTestKit with AnyWordSpecLike wi
 
         inside(probe.expectMessageType[SessionStore.Response]) {
           case SessionStore.SessionCreated(token, deviceId) =>
-            UUID.fromString(deviceId) shouldBe a [UUID]
+            ULID.fromString(deviceId) shouldBe a [ULID]
 
             Token.verify(token) should matchPattern {
               case Right(_) =>
@@ -122,7 +121,7 @@ class SessionStoreSpec extends ScalaTestWithActorTestKit with AnyWordSpecLike wi
         "respond with Invalid" in {
           val repo = testKit.spawn(SessionStore())
           val probe = testKit.createTestProbe[SessionStore.Response]()
-          val token = Token.generateAndSign(UUID.randomUUID.toString)
+          val token = Token.generateAndSign(ULID.newULIDString)
 
           repo ! SessionStore.ValidateToken(token, probe.ref)
 

@@ -13,8 +13,7 @@ import play.api.libs.json.*
 import play.api.libs.json.Reads.*
 import play.api.test.*
 import play.api.test.Helpers.*
-
-import java.util.UUID
+import wvlet.airframe.ulid.ULID
 
 class LoginControllerSpec extends PlaySpec with GuiceOneAppPerTest with Injecting with DatabaseRollback {
   trait ExistingUser extends ScalaTestWithActorTestKit {
@@ -34,7 +33,7 @@ class LoginControllerSpec extends PlaySpec with GuiceOneAppPerTest with Injectin
   }
 
   trait LoginRequestParams extends ExistingUser {
-    val requestDeviceId: String = UUID.randomUUID.toString
+    val requestDeviceId: String = ULID.newULIDString
     val requestDeviceName = "iDevice 123 Max Pro Extreme"
 
     val identifierJson: JsObject = Json.obj(

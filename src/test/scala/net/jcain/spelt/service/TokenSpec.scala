@@ -7,15 +7,14 @@ import net.jcain.spelt.models.Config
 import org.scalatest.Inside.inside
 import org.scalatest.matchers.should.*
 import org.scalatest.wordspec.AnyWordSpecLike
-
-import java.util.UUID
+import wvlet.airframe.ulid.ULID
 
 class TokenSpec extends AnyWordSpecLike with Matchers {
   "generateAndSign()" should {
     "return a JWT string" in {
       // Generate JWT.
-      val uuid = java.util.UUID.randomUUID().toString
-      val jwt = Token.generateAndSign(uuid)
+      val ulid = ULID.newULIDString
+      val jwt = Token.generateAndSign(ulid)
 
       // Verify and decode JWT.
       val algorithm = Algorithm.RSA256(Token.publicKey, Token.privateKey)
@@ -23,18 +22,18 @@ class TokenSpec extends AnyWordSpecLike with Matchers {
       val decodedJwt = verifier.verify(jwt)
 
       // Check payload.
-      decodedJwt.getSubject should equal (uuid)
+      decodedJwt.getSubject should equal (ulid)
     }
   }
 
   "verify()" when {
     "token is a valid JWT" should {
       "return a decoded JWT" in {
-        val uuid = UUID.randomUUID.toString
+        val ulid = ULID.newULIDString
 
-        inside(Token.verify(Token.generateAndSign(uuid))) {
+        inside(Token.verify(Token.generateAndSign(ulid))) {
           case Right(decodedJwt) =>
-            decodedJwt.getSubject should equal (uuid)
+            decodedJwt.getSubject should equal (ulid)
         }
       }
     }

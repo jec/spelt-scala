@@ -8,8 +8,7 @@ import org.scalatest.Inside.inside
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
 import play.api.libs.json.{JsObject, Json}
-
-import java.util.UUID
+import wvlet.airframe.ulid.ULID
 
 class AuthSpec extends ScalaTestWithActorTestKit with AnyWordSpecLike with Matchers with DatabaseRollback {
   trait ExistingUser {
@@ -18,7 +17,7 @@ class AuthSpec extends ScalaTestWithActorTestKit with AnyWordSpecLike with Match
   }
 
   trait LoginRequestParams extends ExistingUser {
-    val requestDeviceId: String = UUID.randomUUID.toString
+    val requestDeviceId: String = ULID.newULIDString
     val requestDeviceName = "iDevice 123 Max Pro Extreme"
 
     val identifierJson: JsObject = Json.obj(
@@ -53,9 +52,9 @@ class AuthSpec extends ScalaTestWithActorTestKit with AnyWordSpecLike with Match
             replyTo ! UserStore.GetUserResponse(Right(Some(existingUser)))
         }
 
-        // Create a UUID and JWT that the SessionStore would create upon success.
-        private val sessionUuid: String = UUID.randomUUID.toString
-        private val token = Token.generateAndSign(sessionUuid)
+        // Create a ULID and JWT that the SessionStore would create upon success.
+        private val sessionUlid: String = ULID.newULIDString
+        private val token = Token.generateAndSign(sessionUlid)
 
         // Expect SessionStore to receive GetOrCreateSession; respond with SessionCreated.
         inside(sessionStoreProbe.expectMessageType[SessionStore.Request]) {

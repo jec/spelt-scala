@@ -16,7 +16,7 @@ object PrivateItem {
   value
 }
 object Session {
-  uuid
+  ulid
 }
 object Device {
   identifier
@@ -49,16 +49,16 @@ object Peer {
   name
 }
 
-User --> Session : authed_as
-User --> Room : created
-User --> Room : member_of
-ProfileItem --> User : belongs_to
-PrivateItem --> User : belongs_to
-RoomState --> Room : state_of
-RoomAlias --> Room : for
-Session --> Device : connected_from
-Event --> Event : child_of
-Event --> Room : sent_to
-Peer --> Room : participates_in
+User --> Session : AUTHENTICATED_AS
+User --> Room : CREATED
+User --> Room : MEMBER_OF
+ProfileItem --> User : BELONGS_TO
+PrivateItem --> User : BELONGS_TO
+RoomState --> Room : STATE_OF
+RoomAlias --> Room : FOR
+Session --> Device : CONNECTED_FROM
+Event --> Event : CHILD_OF
+Event --> Room : SENT_TO
+Peer --> Room : PARTICIPATES_IN
 
 @enduml
