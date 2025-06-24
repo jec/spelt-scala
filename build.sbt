@@ -18,12 +18,15 @@ lazy val spelt = (project in file("."))
     version := "0.1.0-SNAPSHOT",
     scalacOptions += "-Wunused:imports",
     coverageExcludedPackages := ".*Reverse.*Controller;.*Routes;.*RoutesPrefix",
+    // For `sbt run`, listen on IPv4 localhost.
+    // (see https://www.playframework.com/documentation/3.0.x/ConfigFile#Using-with-the-run-command)
+    PlayKeys.devSettings += "play.server.http.address" -> "127.0.0.1",
     libraryDependencies ++= Seq(
       guice,
-      "ch.qos.logback" % "logback-classic" % "1.5.11" % "runtime",
-      "com.auth0" % "java-jwt" % "4.4.0",
-      "org.bouncycastle" % "bcprov-jdk18on" % "1.78.1",
-      "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.17.1",
+      "ch.qos.logback" % "logback-classic" % "1.5.18" % "runtime",
+      "com.auth0" % "java-jwt" % "4.5.0",
+      "org.bouncycastle" % "bcprov-jdk18on" % "1.81",
+      "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.19.1",
       "com.google.inject" % "guice" % guiceVersion,
       "com.google.inject.extensions" % "guice-assistedinject" % guiceVersion,
       "io.github.neotypes" %% "neotypes-core" % "1.2.2",
