@@ -1,3 +1,4 @@
 package net.jcain.spelt.models
 
-case class Session(ulid: String)
+case class Session(ulid: String,
+                   token: String)

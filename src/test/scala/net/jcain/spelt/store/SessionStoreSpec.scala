@@ -10,7 +10,7 @@ import wvlet.airframe.ulid.ULID
 
 class SessionStoreSpec extends ScalaTestWithActorTestKit with AnyWordSpecLike with Matchers with DatabaseRollback {
   "GetOrCreateSession" when {
-    "User has no previous session" should {
+    "user has no previous session" should {
       "respond with SessionCreated" in {
         // Create User.
         val userRepo = testKit.spawn(UserStore())
@@ -41,7 +41,7 @@ class SessionStoreSpec extends ScalaTestWithActorTestKit with AnyWordSpecLike wi
       }
     }
 
-    "User has a previous session" should {
+    "user has a previous session" should {
       "respond with SessionCreated with the same device ID and a new token" in {
         // Create User.
         val userRepo = testKit.spawn(UserStore())
@@ -69,7 +69,7 @@ class SessionStoreSpec extends ScalaTestWithActorTestKit with AnyWordSpecLike wi
       }
     }
 
-    "Previous session not found" should {
+    "previous session not found" should {
       "respond with SessionCreated with the same device ID and a new token" in {
         // Create User.
         val userRepo = testKit.spawn(UserStore())
@@ -100,7 +100,7 @@ class SessionStoreSpec extends ScalaTestWithActorTestKit with AnyWordSpecLike wi
       }
     }
 
-    "User not found" should {
+    "user not found" should {
       "respond with UserNotFound" in {
         // Send message and check response.
         val repo = testKit.spawn(SessionStore())
@@ -108,16 +108,14 @@ class SessionStoreSpec extends ScalaTestWithActorTestKit with AnyWordSpecLike wi
 
         repo ! SessionStore.GetOrCreateSession("phred", None, None, probe.ref)
 
-        inside(probe.expectMessageType[SessionStore.Response]) {
-          case SessionStore.UserNotFound =>
-        }
+        inside(probe.expectMessage(SessionStore.UserNotFound))
       }
     }
   }
 
   "ValidateToken" when {
     "JWT is valid" when {
-      "Session does not exist" should {
+      "session does not exist" should {
         "respond with Invalid" in {
           val repo = testKit.spawn(SessionStore())
           val probe = testKit.createTestProbe[SessionStore.Response]()

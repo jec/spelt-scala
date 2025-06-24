@@ -6,8 +6,8 @@ import net.jcain.spelt.models.Database
 import net.jcain.spelt.service.Token
 import org.apache.pekko.actor.typed.scaladsl.Behaviors
 import org.apache.pekko.actor.typed.{ActorRef, Behavior}
-
 import wvlet.airframe.ulid.ULID
+
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.util.{Failure, Success}
 
@@ -32,7 +32,7 @@ import scala.util.{Failure, Success}
  */
 object SessionStore {
   sealed trait Request
-  final case class GetOrCreateSession(name: String,
+  final case class GetOrCreateSession(username: String,
                                       deviceId: Option[String],
                                       deviceName: Option[String],
                                       replyTo: ActorRef[Response]) extends Request
@@ -80,9 +80,9 @@ object SessionStore {
    */
   private def readByDevice(username: String, deviceId: String, deviceName: Option[String], replyTo: ActorRef[Response]): Unit =
     c"""
-      MATCH (u:User)-[AUTHENTICATED_AS]->(s:Session)
+      MATCH (u:User)-[:AUTHENTICATED_AS]->(s:Session)-[:CONNECTED_FROM]->(d:Device)
       WHERE u.name = $username
-      AND s.deviceId = $deviceId
+      AND d.identifier = $deviceId
       RETURN s.ulid
     """
       .query(ResultMapper.string)
@@ -100,30 +100,35 @@ object SessionStore {
    *
    * On successful creation, it sends a SessionCreated message to the requesting Actor.
    *
-   * @param name username
-   * @param deviceName device name
+   * @param username username
+   * @param deviceNameOption device name
    * @param replyTo requesting Actor
    */
-  private def createSession(name: String, deviceName: Option[String], replyTo: ActorRef[Response]): Unit =
+  private def createSession(username: String, deviceNameOption: Option[String], replyTo: ActorRef[Response]): Unit =
     val ulid = ULID.newULIDString
     val deviceId = ULID.newULIDString
     val token = Token.generateAndSign(ulid)
 
+    // The RETURN value allows to discern whether the MATCH on User succeeds. Otherwise, using
+    // execute() would succeed even if the MATCH failed.
+
+    // TODO: Store lastSeenIp and lastSeenAt.
     c"""
       MATCH (u:User)
-      WHERE u.name = $name
+      WHERE u.name = $username
       CREATE (u)-[:AUTHENTICATED_AS]->(s:Session {
         ulid: $ulid,
-        deviceId: $deviceId,
-        token: $token,
-        deviceName: $deviceName
+        token: $token
+      })-[:CONNECTED_FROM]->(d:Device {
+        identifier: $deviceId,
+        displayName: $deviceNameOption
       })
-      RETURN s.deviceId
+      RETURN d.identifier
     """
       .query(ResultMapper.string)
       .list(Database.driver)
       .onComplete:
-        case Success(deviceId :: _) =>
+        case Success(_ :: _) =>
           replyTo ! SessionCreated(token, deviceId)
         case Success(Nil) =>
           replyTo ! UserNotFound
@@ -146,17 +151,18 @@ object SessionStore {
     // does, then it's truly an exceptional condition.
 
     c"""
-      MATCH (s:Session)
+      MATCH (s:Session)-[:CONNECTED_FROM]->(d:Device)
       WHERE s.ulid = $ulid
-      WITH s
       SET s.token = $token
-      RETURN s.deviceId
+      RETURN d.identifier
     """
       .query(ResultMapper.string)
-      .single(Database.driver)
+      .list(Database.driver)
       .onComplete:
-        case Success(deviceId) =>
+        case Success(deviceId :: _) =>
           replyTo ! SessionCreated(token, deviceId)
+        case Success(Nil) =>
+          replyTo ! SessionFailed(RuntimeException("unreachable"))
         case Failure(error) =>
           replyTo ! SessionFailed(error)
 
