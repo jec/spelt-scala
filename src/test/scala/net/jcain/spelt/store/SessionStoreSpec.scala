@@ -1,6 +1,7 @@
 package net.jcain.spelt.store
 
-import net.jcain.spelt.service.Token
+import net.jcain.spelt.models.User
+import net.jcain.spelt.service.{Auth, Token}
 import net.jcain.spelt.support.DatabaseRollback
 import org.apache.pekko.actor.testkit.typed.scaladsl.ScalaTestWithActorTestKit
 import org.scalatest.Inside.inside
@@ -9,23 +10,41 @@ import org.scalatest.wordspec.AnyWordSpecLike
 import wvlet.airframe.ulid.ULID
 
 class SessionStoreSpec extends ScalaTestWithActorTestKit with AnyWordSpecLike with Matchers with DatabaseRollback {
+  trait ExistingUser {
+    val existingPassword = "open-sesame"
+    val existingUser: User = User("phredsmerd", Auth.hashPassword(existingPassword), "phredsmerd@example.com")
+
+    // Create User in database.
+    private val userStore = testKit.spawn(UserStore())
+    private val userStoreProbe = testKit.createTestProbe[UserStore.Response]()
+    userStore ! UserStore.CreateUser(
+      existingUser.name,
+      existingPassword,
+      existingUser.email,
+      userStoreProbe.ref
+    )
+    userStoreProbe.expectMessage(UserStore.CreateUserResponse(Right(existingUser.name)))
+  }
+
+  trait ExistingSession extends ExistingUser {
+    private val sessionStoreRepo = testKit.spawn(SessionStore())
+    private val sessionStoreProbe = testKit.createTestProbe[SessionStore.Response]()
+
+    sessionStoreRepo !
+      SessionStore.GetOrCreateSession(existingUser.name, None, None, sessionStoreProbe.ref)
+
+    val existingSession: SessionStore.SessionCreated =
+      sessionStoreProbe.expectMessageType[SessionStore.SessionCreated]
+  }
+
   "GetOrCreateSession" when {
     "user has no previous session" should {
-      "respond with SessionCreated" in {
-        // Create User.
-        val userRepo = testKit.spawn(UserStore())
-        val userProbe = testKit.createTestProbe[UserStore.Response]()
-
-        userRepo ! UserStore.CreateUser("phred", "secret", "phred@example.com", userProbe.ref)
-        userProbe.expectMessageType[UserStore.Response] should matchPattern {
-          case UserStore.CreateUserResponse(Right(_)) =>
-        }
-
+      "respond with SessionCreated" in new ExistingUser {
         // Send message and check response.
-        val repo = testKit.spawn(SessionStore())
-        val probe = testKit.createTestProbe[SessionStore.Response]()
+        private val repo = testKit.spawn(SessionStore())
+        private val probe = testKit.createTestProbe[SessionStore.Response]()
 
-        repo ! SessionStore.GetOrCreateSession("phred", None, None, probe.ref)
+        repo ! SessionStore.GetOrCreateSession(existingUser.name, None, None, probe.ref)
 
         inside(probe.expectMessageType[SessionStore.Response]) {
           case SessionStore.SessionCreated(token, deviceId) =>
@@ -42,29 +61,18 @@ class SessionStoreSpec extends ScalaTestWithActorTestKit with AnyWordSpecLike wi
     }
 
     "user has a previous session" should {
-      "respond with SessionCreated with the same device ID and a new token" in {
-        // Create User.
-        val userRepo = testKit.spawn(UserStore())
-        val userProbe = testKit.createTestProbe[UserStore.Response]()
+      "respond with SessionCreated with the same device ID and a new token" in new ExistingSession {
+        private val repo = testKit.spawn(SessionStore())
+        private val probe = testKit.createTestProbe[SessionStore.Response]()
 
-        userRepo ! UserStore.CreateUser("phred", "secret", "phred@example.com", userProbe.ref)
-        userProbe.expectMessageType[UserStore.Response] should matchPattern {
-          case UserStore.CreateUserResponse(Right(_)) =>
-        }
-
-        // Send message to create Session.
-        val repo = testKit.spawn(SessionStore())
-        val probe = testKit.createTestProbe[SessionStore.Response]()
-        repo ! SessionStore.GetOrCreateSession("phred", None, None, probe.ref)
-        val response = probe.expectMessageType[SessionStore.SessionCreated]
-
-        // Send message again and check response.
-        repo ! SessionStore.GetOrCreateSession("phred", Some(response.deviceId), None, probe.ref)
+        // Send message and check response.
+        repo !
+          SessionStore.GetOrCreateSession(existingUser.name, Some(existingSession.deviceId), None, probe.ref)
 
         inside(probe.expectMessageType[SessionStore.Response]) {
           case SessionStore.SessionCreated(token, deviceId) =>
-            token shouldEqual response.token
-            deviceId shouldEqual response.deviceId
+            token shouldEqual existingSession.token
+            deviceId shouldEqual existingSession.deviceId
         }
       }
     }
