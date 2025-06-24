@@ -12,7 +12,13 @@ import java.security.KeyFactory
 import java.security.interfaces.{RSAPrivateCrtKey, RSAPrivateKey, RSAPublicKey}
 import java.security.spec.{PKCS8EncodedKeySpec, RSAPublicKeySpec}
 
+/**
+ * Implements functions to create and validate JWTs
+ */
 object Token {
+  /**
+   * RSA key used for JWT signatures
+   */
   val (privateKey, publicKey) = {
     // Load private key.
     val file = getClass.getResource("/pkey.pk8")
@@ -29,8 +35,14 @@ object Token {
     (privateKey.asInstanceOf[RSAPrivateKey], publicKey.asInstanceOf[RSAPublicKey])
   }
 
+  /**
+   * Algorithm used for JWT signatures
+   */
   val algorithm: Algorithm = Algorithm.RSA256(publicKey, privateKey)
 
+  /**
+   * Instance of JWT verifier
+   */
   val verifier: JWTVerifier = JWT.require(algorithm)
     .withIssuer(Config.jwtIssuer)
     .build

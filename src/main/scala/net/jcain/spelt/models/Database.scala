@@ -6,6 +6,9 @@ import org.neo4j.driver.AuthTokens
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
+/**
+ * Instantiates a single database driver to be used throughout the application
+ */
 object Database {
   var driver: AsyncDriver[Future] = {
     val url = Config.database.getString("url")

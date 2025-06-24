@@ -4,6 +4,14 @@ import com.typesafe.config
 import com.typesafe.config.ConfigFactory
 import play.api.libs.json.{JsValue, Json}
 
+/**
+ * Loads the application configuration and provides convenient access to it
+ *
+ * This is somewhat redundant to injecting play.api.Configuration, but injecting that here would
+ * require this to be injected in many places as a singleton class, and some of those receivers
+ * (notably `Database`) would also have to be injected singletons (or be replaced with bindings for
+ * their values).
+ */
 object Config {
   private val base: config.Config = ConfigFactory.load()
   val database: config.Config = base.getConfig("database")

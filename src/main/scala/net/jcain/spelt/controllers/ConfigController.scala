@@ -6,6 +6,13 @@ import play.api.mvc.{Action, AnyContent, BaseController, ControllerComponents, R
 
 import javax.inject.{Inject, Singleton}
 
+/**
+ * Responds with static connfiguration values
+ *
+ * This is implemented as a Singleton since all responses are static.
+ *
+ * @param controllerComponents required by `BaseController` [injected]
+ */
 @Singleton
 class ConfigController @Inject() (val controllerComponents: ControllerComponents) extends BaseController {
   /**

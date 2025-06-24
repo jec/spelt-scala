@@ -1,17 +1,38 @@
 package net.jcain.spelt.controllers
 
+import net.jcain.spelt.controllers.LoginController.supportedLoginFlows
 import net.jcain.spelt.models.Config
 import net.jcain.spelt.service.Auth
 import org.apache.pekko.actor.typed.scaladsl.AskPattern.Askable
 import org.apache.pekko.actor.typed.{ActorRef, Scheduler}
 import org.apache.pekko.util.Timeout
-import play.api.libs.json.{JsString, JsValue, Json}
+import play.api.libs.json.{JsObject, JsString, JsValue, Json}
 import play.api.mvc.*
 
 import javax.inject.Inject
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.*
 
+object LoginController:
+  /**
+   * The Matrix login flows supported by the app
+   */
+  val supportedLoginFlows: JsObject = Json.obj(
+    "flows" -> Json.arr(
+      Json.obj("type" -> "m.login.password")
+    )
+  )
+
+/**
+ * Implements endpoints related to user login
+ *
+ * This is not a Singleton so that it receives the current Auth actor reference each time.
+ *
+ * @param authRef              reference to Auth actor [injected]
+ * @param controllerComponents required by `BaseController` [injected]
+ * @param xc                   required for interacting with the Actor System
+ * @param sch                  required for interacting with the Actor System
+ */
 class LoginController @Inject() (
   authRef: ActorRef[Auth.Request],
   val controllerComponents: ControllerComponents
@@ -29,7 +50,7 @@ class LoginController @Inject() (
    * See https://spec.matrix.org/v1.14/client-server-api/#get_matrixclientv3login
    */
   def loginTypes(): Action[AnyContent] = Action {
-    Ok(Json.obj("flows" -> Json.arr(Json.obj("type" -> "m.login.password"))))
+    Ok(supportedLoginFlows)
   }
 
   /**
