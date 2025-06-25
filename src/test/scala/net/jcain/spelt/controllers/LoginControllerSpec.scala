@@ -89,7 +89,7 @@ class LoginControllerSpec extends PlaySpec with GuiceOneAppPerTest with Injectin
             // TODO: Implement Device model so this passes.
             // deviceId must equal (requestDeviceId)
             userId must equal (existingUser.name)
-            homeUrl must equal (Config.homeserverUrl)
+            homeUrl must equal (s"https://${Config.homeserver}")
             idUrl must equal (Config.identityUrl)
         }
       }

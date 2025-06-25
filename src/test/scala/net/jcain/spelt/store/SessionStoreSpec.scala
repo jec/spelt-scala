@@ -54,8 +54,8 @@ class SessionStoreSpec extends ScalaTestWithActorTestKit with AnyWordSpecLike wi
               case Right(_) =>
             }
 
-            repo ! SessionStore.ValidateToken(token, probe.ref)
-            probe.expectMessage(SessionStore.TokenValid)
+            repo ! SessionStore.VerifyToken(token, probe.ref)
+            probe.expectMessage(SessionStore.TokenPassed)
         }
       }
     }
@@ -71,8 +71,8 @@ class SessionStoreSpec extends ScalaTestWithActorTestKit with AnyWordSpecLike wi
 
         inside(probe.expectMessageType[SessionStore.Response]) {
           case SessionStore.SessionCreated(token, deviceId) =>
-            token shouldEqual existingSession.token
-            deviceId shouldEqual existingSession.deviceId
+            token should not equal existingSession.token
+            deviceId should equal (existingSession.deviceId)
         }
       }
     }
@@ -102,8 +102,8 @@ class SessionStoreSpec extends ScalaTestWithActorTestKit with AnyWordSpecLike wi
               case Right(_) =>
             }
 
-            repo ! SessionStore.ValidateToken(token, probe.ref)
-            probe.expectMessage(SessionStore.TokenValid)
+            repo ! SessionStore.VerifyToken(token, probe.ref)
+            probe.expectMessage(SessionStore.TokenPassed)
         }
       }
     }
@@ -121,18 +121,29 @@ class SessionStoreSpec extends ScalaTestWithActorTestKit with AnyWordSpecLike wi
     }
   }
 
-  "ValidateToken" when {
+  "VerifyToken" when {
     "JWT is valid" when {
+      "session exists" should {
+        "respond with TokenPassed" in new ExistingSession {
+          private val repo = testKit.spawn(SessionStore())
+          private val probe = testKit.createTestProbe[SessionStore.Response]()
+
+          repo ! SessionStore.VerifyToken(existingSession.token, probe.ref)
+
+          probe.expectMessage(SessionStore.TokenPassed)
+        }
+      }
+
       "session does not exist" should {
-        "respond with Invalid" in {
+        "respond with TokenFailed" in {
           val repo = testKit.spawn(SessionStore())
           val probe = testKit.createTestProbe[SessionStore.Response]()
           val token = Token.generateAndSign(ULID.newULIDString)
 
-          repo ! SessionStore.ValidateToken(token, probe.ref)
+          repo ! SessionStore.VerifyToken(token, probe.ref)
 
           inside(probe.expectMessageType[SessionStore.Response]) {
-            case SessionStore.TokenInvalid(error) =>
+            case SessionStore.TokenFailed(error) =>
               error.getMessage should include ("Session not found")
           }
         }

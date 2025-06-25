@@ -5,6 +5,7 @@ import com.auth0.jwt.exceptions.JWTVerificationException
 import com.auth0.jwt.interfaces.DecodedJWT
 import com.auth0.jwt.{JWT, JWTVerifier}
 import net.jcain.spelt.models.Config
+import wvlet.airframe.ulid.ULID
 
 import java.nio.file.{Files, Path}
 import java.security.KeyFactory
@@ -37,16 +38,22 @@ object Token {
   /**
    * Generates a JWT for the Session `ulid`
    *
+   * The payload includes a JTI claim (JWT ID), which is a ULID generated at the time of the call.
+   * This ensures that multiple JWTs generated for the same Session ULID within the same epoch
+   * timestamp are unique. The JTI is never referenced otherwise.
+   *
    * @param ulid Session ULID
    *
    * @return JWT for authentication
    */
   def generateAndSign(ulid: String): String = {
     val now = java.time.Instant.now
+    val jwtId = ULID.newULIDString
 
     JWT.create()
       .withIssuer(Config.jwtIssuer)
       .withSubject(ulid)
+      .withJWTId(jwtId)
       .withIssuedAt(now)
       .withExpiresAt(now.plusSeconds(3600))
       .sign(algorithm)

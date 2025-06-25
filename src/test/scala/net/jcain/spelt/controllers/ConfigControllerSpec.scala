@@ -28,7 +28,7 @@ class ConfigControllerSpec extends PlaySpec with GuiceOneAppPerTest with Injecti
 
       val parsedBody = contentAsJson(response)
 
-      (parsedBody \ "m.homeserver" \ "base_url") must equal (JsDefined(JsString(Config.homeserverUrl)))
+      (parsedBody \ "m.homeserver" \ "base_url") must equal (JsDefined(JsString(s"https://${Config.homeserver}")))
       (parsedBody \ "m.identity_server" \ "base_url") must equal (JsDefined(JsString(Config.identityUrl)))
     }
   }

@@ -15,15 +15,17 @@ import scala.util.{Failure, Success}
  * An Actor that implements the CRUD operations for Session nodes
  *
  * Messages it receives:
- * * GetOrCreateSession -- gets (if `name` and `deviceId` are found) or creates a Session node
+ * * GetOrCreateSession -- gets (if `username` and `deviceId` are found) or creates Session and
+ *     Device nodes
  *   Responses:
  *   * SessionCreated -- includes a JWT and a (possibly new) deviceId
  *   * SessionFailed -- includes a Throwable
  *
- * * ValidateToken -- check whether a `token` references a valid Session node
+ * * VerifyToken -- check whether a `token` references a Session node
  *   Responses:
- *   * TokenValid
- *   * TokenInvalid
+ *   * TokenPassed
+ *   * TokenFailed -- includes a Throwable describing the failure
+ *   * TokenOtherError -- another error (e.g. Database error) occurred; includes a Throwable
  *
  * Rules:
  *   - A new login request for the same user and device invalidates any previous token issued for
@@ -36,14 +38,15 @@ object SessionStore {
                                       deviceId: Option[String],
                                       deviceName: Option[String],
                                       replyTo: ActorRef[Response]) extends Request
-  final case class ValidateToken(token: String, replyTo: ActorRef[Response]) extends Request
+  final case class VerifyToken(token: String, replyTo: ActorRef[Response]) extends Request
 
   sealed trait Response
   final case class SessionCreated(token: String, deviceId: String) extends Response
   object UserNotFound extends Response
   final case class SessionFailed(error: Throwable) extends Response
-  object TokenValid extends Response
-  final case class TokenInvalid(error: Throwable) extends Response
+  object TokenPassed extends Response
+  final case class TokenFailed(error: Throwable) extends Response
+  final case class TokenOtherError(error: Throwable) extends Response
 
   /**
    * Dispatches received messages
@@ -64,21 +67,26 @@ object SessionStore {
 
       Behaviors.same
 
-    case ValidateToken(token, replyTo) =>
-      validateToken(token, replyTo)
+    case VerifyToken(token, replyTo) =>
+      verifyToken(token, replyTo)
       Behaviors.same
   }
 
   /**
-   * Looks up Session by `name` and `deviceId`; if found then updates that Session with a new token; else creates
-   * a new Session
+   * Looks up Session by `username` and `deviceId`; if found then updates that Session with a new
+   * token; else creates a new Session and Device
    *
    * @param username username
    * @param deviceId a pre-existing device ID (optional)
    * @param deviceName a device name to use (optional)
    * @param replyTo requesting Actor
    */
-  private def readByDevice(username: String, deviceId: String, deviceName: Option[String], replyTo: ActorRef[Response]): Unit =
+  private def readByDevice(
+    username: String,
+    deviceId: String,
+    deviceName: Option[String],
+    replyTo: ActorRef[Response]
+  ): Unit =
     c"""
       MATCH (u:User)-[:AUTHENTICATED_AS]->(s:Session)-[:CONNECTED_FROM]->(d:Device)
       WHERE u.name = $username
@@ -167,15 +175,21 @@ object SessionStore {
           replyTo ! SessionFailed(error)
 
   /**
-   * Validates a token by decoding it and then looking up the Session it references
+   * Verifies a token by decoding it and then looking up the Session it references
+   *
+   * JWT-specific verification involves validating its structure, checking that the current time
+   * is between its not-before and expires-at claims, and verifying its signature.
+   *
+   * In addition, this method checks that the JWT's subject claim matches the ULID of an existing
+   * Session.
    *
    * @param token JWT to validate
    * @param replyTo requesting Actor
    */
-  private def validateToken(token: String, replyTo: ActorRef[Response]): Unit =
+  private def verifyToken(token: String, replyTo: ActorRef[Response]): Unit =
     Token.verify(token) match {
       case Left(error) =>
-        replyTo ! TokenInvalid(error)
+        replyTo ! TokenFailed(error)
 
       case Right(decodedJwt) =>
         val ulid = decodedJwt.getSubject
@@ -186,10 +200,10 @@ object SessionStore {
           .single(Database.driver)
           .onComplete:
             case Success(1) =>
-              replyTo ! TokenValid
+              replyTo ! TokenPassed
             case Success(_) =>
-              replyTo ! TokenInvalid(new RuntimeException("Subject invalid: Session not found"))
+              replyTo ! TokenFailed(new RuntimeException("Subject invalid: Session not found"))
             case Failure(error) =>
-              () // TODO: Handle error.
+              replyTo ! TokenOtherError(error)
     }
 }
