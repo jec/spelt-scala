@@ -88,7 +88,7 @@ class LoginControllerSpec extends PlaySpec with GuiceOneAppPerTest with Injectin
           case JsSuccess(LoginResponse(jwt, deviceId, userId, WellKnown(homeUrl, idUrl)), _) =>
             // TODO: Implement Device model so this passes.
             // deviceId must equal (requestDeviceId)
-            userId must equal (existingUser.name)
+            userId must equal (s"@${existingUser.name}:${Config.homeserver}")
             homeUrl must equal (s"https://${Config.homeserver}")
             idUrl must equal (Config.identityUrl)
         }

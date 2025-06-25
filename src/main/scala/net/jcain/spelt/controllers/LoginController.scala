@@ -49,7 +49,7 @@ class LoginController @Inject() (
           Ok(Json.obj(
             "access_token" -> JsString(token),
             "device_id" -> JsString(deviceId),
-            "user_id" -> JsString(name),
+            "user_id" -> JsString(s"@$name:${Config.homeserver}"),
             "well_known" -> Config.wellKnown
           ))
 
