@@ -2,7 +2,7 @@ package net.jcain.spelt.controllers
 
 import net.jcain.spelt.controllers.LoginController.supportedLoginFlows
 import net.jcain.spelt.models.Config
-import net.jcain.spelt.service.Auth
+import net.jcain.spelt.service.{Auth, AuthenticatedAction}
 import org.apache.pekko.actor.typed.scaladsl.AskPattern.Askable
 import org.apache.pekko.actor.typed.{ActorRef, Scheduler}
 import org.apache.pekko.util.Timeout
@@ -35,6 +35,7 @@ object LoginController:
  */
 class LoginController @Inject() (
   authRef: ActorRef[Auth.Request],
+  authenticatedAction: AuthenticatedAction,
   val controllerComponents: ControllerComponents
 )(
   implicit xc: ExecutionContext,
@@ -77,5 +78,17 @@ class LoginController @Inject() (
         case Auth.LoginFailed(message) =>
           Unauthorized(Json.obj("error_message" -> JsString(message)))
       }
+  }
+
+  /**
+   * POST /_matrix/client/v3/logout
+   *
+   * [Authenticated] Deletes the current Session
+   *
+   * See https://spec.matrix.org/v1.14/client-server-api/#post_matrixclientv3logout
+   */
+  def logOut(): Action[JsValue] = authenticatedAction { // (request: AuthenticatedRequest[AnyContent]) =>
+    val message = "foo"
+    Unauthorized(Json.obj("error_message" -> JsString(message)))
   }
 }
