@@ -18,7 +18,7 @@ This checklist tracks the progress of implementing the endpoints defined in the
         - [ ] `GET /_matrix/client/v1/register/m.login.registration_token/validity`
     - [ ] 4.6 Login
         - [x] `GET /_matrix/client/v3/login`
-        - [ ] `POST /_matrix/client/v3/login`
+        - [x] `POST /_matrix/client/v3/login`
         - [ ] `POST /_matrix/client/v1/login/get_token`
         - [ ] `POST /_matrix/client/v3/refresh`
         - [ ] `POST /_matrix/client/v3/logout`
