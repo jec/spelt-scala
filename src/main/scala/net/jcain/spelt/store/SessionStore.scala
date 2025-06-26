@@ -1,8 +1,9 @@
 package net.jcain.spelt.store
 
+import neotypes.generic.implicits.*
 import neotypes.mappers.ResultMapper
 import neotypes.syntax.all.*
-import net.jcain.spelt.models.Database
+import net.jcain.spelt.models.{Database, Device, Session, User}
 import net.jcain.spelt.service.Token
 import org.apache.pekko.actor.typed.scaladsl.Behaviors
 import org.apache.pekko.actor.typed.{ActorRef, Behavior}
@@ -21,6 +22,11 @@ import scala.util.{Failure, Success}
  *   * SessionCreated -- includes a JWT and a (possibly new) deviceId
  *   * SessionFailed -- includes a Throwable
  *
+ * * DeleteSession -- deletes Session by `ulid`
+ *   Responses:
+ *   * SessionDeleted
+ *   * SessionDeletionFailed
+ *
  * * VerifyToken -- check whether a `token` references a Session node
  *   Responses:
  *   * TokenPassed
@@ -38,13 +44,16 @@ object SessionStore {
                                       deviceId: Option[String],
                                       deviceName: Option[String],
                                       replyTo: ActorRef[Response]) extends Request
+  final case class DeleteSession(ulid: String, replyTo: ActorRef[Response]) extends Request
   final case class VerifyToken(token: String, replyTo: ActorRef[Response]) extends Request
 
   sealed trait Response
-  final case class SessionCreated(token: String, deviceId: String) extends Response
+  final case class SessionCreated(ulid: String, token: String, deviceId: String) extends Response
   object UserNotFound extends Response
   final case class SessionFailed(error: Throwable) extends Response
-  object TokenPassed extends Response
+  object SessionDeleted extends Response
+  final case class SessionDeletionFailed(message: String) extends Response
+  final case class TokenPassed(user: User, session: Session, device: Device) extends Response
   final case class TokenFailed(error: Throwable) extends Response
   final case class TokenOtherError(error: Throwable) extends Response
 
@@ -65,6 +74,10 @@ object SessionStore {
           readByDevice(name, deviceId, deviceNameOption, replyTo)
       }
 
+      Behaviors.same
+
+    case DeleteSession(ulid, replyTo) =>
+      deleteSession(ulid, replyTo)
       Behaviors.same
 
     case VerifyToken(token, replyTo) =>
@@ -137,7 +150,7 @@ object SessionStore {
       .list(Database.driver)
       .onComplete:
         case Success(_ :: _) =>
-          replyTo ! SessionCreated(token, deviceId)
+          replyTo ! SessionCreated(ulid, token, deviceId)
         case Success(Nil) =>
           replyTo ! UserNotFound
         case Failure(error) =>
@@ -168,11 +181,24 @@ object SessionStore {
       .list(Database.driver)
       .onComplete:
         case Success(deviceId :: _) =>
-          replyTo ! SessionCreated(token, deviceId)
+          replyTo ! SessionCreated(ulid, token, deviceId)
         case Success(Nil) =>
           replyTo ! SessionFailed(RuntimeException("unreachable"))
         case Failure(error) =>
           replyTo ! SessionFailed(error)
+
+  private def deleteSession(ulid: String, replyTo: ActorRef[Response]): Unit =
+    c"MATCH (s:Session) WHERE s.ulid = $ulid DETACH DELETE s"
+      .execute
+      .resultSummary(Database.driver)
+      .onComplete:
+        case Failure(error) =>
+          replyTo ! SessionDeletionFailed(error.getMessage)
+        case Success(result) =>
+          if result.counters.nodesDeleted == 1 then
+            replyTo ! SessionDeleted
+          else
+            replyTo ! SessionDeletionFailed(s"Session not found with ulid $ulid")
 
   /**
    * Verifies a token by decoding it and then looking up the Session it references
@@ -195,13 +221,15 @@ object SessionStore {
         val ulid = decodedJwt.getSubject
 
         // Look up Session by ULID
-        c"MATCH (s:Session) WHERE s.ulid = $ulid RETURN count(s)"
-          .query(ResultMapper.int)
-          .single(Database.driver)
+        c"""MATCH (u:User)-[:AUTHENTICATED_AS]->(s:Session)-[:CONNECTED_FROM]->(d:Device)
+            WHERE s.ulid = $ulid
+            RETURN u, s, d"""
+          .query(ResultMapper.tuple[User, Session, Device])
+          .list(Database.driver)
           .onComplete:
-            case Success(1) =>
-              replyTo ! TokenPassed
-            case Success(_) =>
+            case Success((user, session, device) :: _) =>
+              replyTo ! TokenPassed(user, session, device)
+            case Success(Nil) =>
               replyTo ! TokenFailed(new RuntimeException("Subject invalid: Session not found"))
             case Failure(error) =>
               replyTo ! TokenOtherError(error)

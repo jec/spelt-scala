@@ -61,12 +61,16 @@ class AuthenticatedAction @Inject()(
 
         if authValue.startsWith("Bearer ") then
           sessionStore.ask(ref => SessionStore.VerifyToken(authValue.substring(7), ref)).map {
-            case SessionStore.TokenPassed =>
-              // TODO: TokenPassed should provide these.
-              val user = User("foo", "bar", "baz")
-              val session = Session("foo", "bar")
-              val device = Device("foo", None, "baz", ZonedDateTime.now)
+            case SessionStore.TokenPassed(user, session, device) =>
               Some(AuthenticatedRequest(user, session, device, request))
+
+            case SessionStore.TokenFailed(error) =>
+              logger.info { s"Authentication failed: ${error.getMessage}" }
+              None
+
+            case SessionStore.TokenOtherError(error) =>
+              logger.info { s"Authentication failed: ${error.getMessage}" }
+              None
           }
         else
           Future.successful(None)

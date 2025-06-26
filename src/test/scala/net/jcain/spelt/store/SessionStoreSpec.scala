@@ -47,7 +47,8 @@ class SessionStoreSpec extends ScalaTestWithActorTestKit with AnyWordSpecLike wi
         repo ! SessionStore.GetOrCreateSession(existingUser.name, None, None, probe.ref)
 
         inside(probe.expectMessageType[SessionStore.Response]) {
-          case SessionStore.SessionCreated(token, deviceId) =>
+          case SessionStore.SessionCreated(ulid, token, deviceId) =>
+            ULID.fromString(ulid) shouldBe a [ULID]
             ULID.fromString(deviceId) shouldBe a [ULID]
 
             Token.verify(token) should matchPattern {
@@ -55,7 +56,7 @@ class SessionStoreSpec extends ScalaTestWithActorTestKit with AnyWordSpecLike wi
             }
 
             repo ! SessionStore.VerifyToken(token, probe.ref)
-            probe.expectMessage(SessionStore.TokenPassed)
+            probe.expectMessageType[SessionStore.TokenPassed]
         }
       }
     }
@@ -70,7 +71,8 @@ class SessionStoreSpec extends ScalaTestWithActorTestKit with AnyWordSpecLike wi
           SessionStore.GetOrCreateSession(existingUser.name, Some(existingSession.deviceId), None, probe.ref)
 
         inside(probe.expectMessageType[SessionStore.Response]) {
-          case SessionStore.SessionCreated(token, deviceId) =>
+          case SessionStore.SessionCreated(ulid, token, deviceId) =>
+            ULID.fromString(ulid) shouldBe a [ULID]
             token should not equal existingSession.token
             deviceId should equal (existingSession.deviceId)
         }
@@ -95,7 +97,8 @@ class SessionStoreSpec extends ScalaTestWithActorTestKit with AnyWordSpecLike wi
         repo ! SessionStore.GetOrCreateSession("phred", Some("foo"), None, probe.ref)
 
         inside(probe.expectMessageType[SessionStore.Response]) {
-          case SessionStore.SessionCreated(token, deviceId) =>
+          case SessionStore.SessionCreated(ulid, token, deviceId) =>
+            ULID.fromString(ulid) shouldBe a [ULID]
             ULID.fromString(deviceId) shouldBe a [ULID]
 
             Token.verify(token) should matchPattern {
@@ -103,7 +106,7 @@ class SessionStoreSpec extends ScalaTestWithActorTestKit with AnyWordSpecLike wi
             }
 
             repo ! SessionStore.VerifyToken(token, probe.ref)
-            probe.expectMessage(SessionStore.TokenPassed)
+            probe.expectMessageType[SessionStore.TokenPassed]
         }
       }
     }
@@ -121,6 +124,33 @@ class SessionStoreSpec extends ScalaTestWithActorTestKit with AnyWordSpecLike wi
     }
   }
 
+  "DeleteSession" when {
+    "session exists" should {
+      "respond with SessionDeleted" in new ExistingSession {
+        private val repo = testKit.spawn(SessionStore())
+        private val probe = testKit.createTestProbe[SessionStore.Response]()
+
+        repo ! SessionStore.DeleteSession(existingSession.ulid, probe.ref)
+
+        probe.expectMessage(SessionStore.SessionDeleted)
+      }
+    }
+
+    "session does not exist" should {
+      "respond with SessionDeletionFailed" in {
+        val repo = testKit.spawn(SessionStore())
+        val probe = testKit.createTestProbe[SessionStore.Response]()
+
+        repo ! SessionStore.DeleteSession("foobar", probe.ref)
+
+        inside(probe.expectMessageType[SessionStore.SessionDeletionFailed]) {
+          case SessionStore.SessionDeletionFailed(error) =>
+            error should include("Session not found")
+        }
+      }
+    }
+  }
+
   "VerifyToken" when {
     "JWT is valid" when {
       "session exists" should {
@@ -130,7 +160,7 @@ class SessionStoreSpec extends ScalaTestWithActorTestKit with AnyWordSpecLike wi
 
           repo ! SessionStore.VerifyToken(existingSession.token, probe.ref)
 
-          probe.expectMessage(SessionStore.TokenPassed)
+          probe.expectMessageType[SessionStore.TokenPassed]
         }
       }
 

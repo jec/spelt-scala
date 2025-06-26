@@ -23,6 +23,11 @@ import scala.util.{Failure, Success}
  *   Responses:
  *   * LoginSucceeded
  *   * LoginFailed
+ *
+ * * LogOut -- log out the authenticated user
+ *   Responses:
+ *   * LogoutSucceeded
+ *   * LogoutFailed
  */
 object Auth extends ActorModule {
   type Message = Request
@@ -32,12 +37,17 @@ object Auth extends ActorModule {
   final case class LogIn(parsedParams: JsValue, replyTo: ActorRef[Response]) extends Request
   private case class UserFound(user: User, password: String, deviceIdOption: Option[String], deviceNameOption: Option[String], replyTo: ActorRef[Response]) extends Request
   private case class UserNotFound(name: String, replyTo: ActorRef[Response]) extends Request
-  private case class OtherFailure(message: String, replyTo: ActorRef[Response]) extends Request
   private case class SessionCreated(name: String, token: String, deviceId: String, replyTo: ActorRef[Response]) extends Request
+  private case class OtherFailure(message: String, replyTo: ActorRef[Response]) extends Request
+  final case class LogOut(token: String, replyTo: ActorRef[Response]) extends Request
+  private final case class SessionDeleted(replyTo: ActorRef[Response]) extends Request
+  private final case class SessionNotDeleted(message: String, replyTo: ActorRef[Response]) extends Request
 
   sealed trait Response
   final case class LoginSucceeded(name: String, token: String, deviceId: String) extends Response
   final case class LoginFailed(message: String) extends Response
+  object LogoutSucceeded extends Response
+  final case class LogoutFailed(message: String) extends Response
 
   // JSON classes
   case class Identifier(`type`: String, user: String)
@@ -94,6 +104,18 @@ object Auth extends ActorModule {
 
         case OtherFailure(message, replyTo) =>
           replyTo ! LoginFailed(message)
+          Behaviors.same
+
+        case LogOut(token, replyTo) =>
+          requestSessionDeletion(token, context, sessionStore, replyTo)
+          Behaviors.same
+
+        case SessionDeleted(replyTo) =>
+          replyTo ! LogoutSucceeded
+          Behaviors.same
+
+        case SessionNotDeleted(message, replyTo) =>
+          replyTo ! LogoutFailed(message)
           Behaviors.same
       }
     }
@@ -184,13 +206,30 @@ object Auth extends ActorModule {
 
     if (passwordMatches(user.encryptedPassword, password)) {
       context.ask(sessionStore, ref => SessionStore.GetOrCreateSession(user.name, deviceIdOption, deviceNameOption, ref)) {
-        case Success(SessionStore.SessionCreated(token, deviceId)) => SessionCreated(user.name, token, deviceId, replyTo)
-        case Success(SessionStore.SessionFailed(error)) => OtherFailure(error.getMessage, replyTo)
-        case Success(_) => OtherFailure("unreachable", replyTo)
-        case Failure(error) => OtherFailure(error.getMessage, replyTo)
+        case Success(SessionStore.SessionCreated(ulid, token, deviceId)) =>
+          SessionCreated(user.name, token, deviceId, replyTo)
+        case Success(SessionStore.SessionFailed(error)) =>
+          OtherFailure(error.getMessage, replyTo)
+        case Success(_) =>
+          OtherFailure("unreachable", replyTo)
+        case Failure(error) =>
+          OtherFailure(error.getMessage, replyTo)
       }
     } else {
      replyTo ! LoginFailed("Username or password mismatch")
     }
   }
+
+  private def requestSessionDeletion(token: String,
+                                     context: ActorContext[Request],
+                                     sessionStore: ActorRef[SessionStore.Request],
+                                     replyTo: ActorRef[Auth.Response]): Unit =
+    implicit val timeout: Timeout = 3.seconds
+
+    context.ask(sessionStore, ref => SessionStore.DeleteSession(token, ref)) {
+      case Success(SessionStore.SessionDeleted) =>
+        SessionDeleted(replyTo)
+      case Success(SessionStore.SessionDeletionFailed(message)) =>
+        SessionNotDeleted(message, replyTo)
+    }
 }

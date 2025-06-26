@@ -21,7 +21,7 @@ This checklist tracks the progress of implementing the endpoints defined in the
         - [x] `POST /_matrix/client/v3/login`
         - [ ] `POST /_matrix/client/v1/login/get_token`
         - [ ] `POST /_matrix/client/v3/refresh`
-        - [ ] `POST /_matrix/client/v3/logout`
+        - [x] `POST /_matrix/client/v3/logout`
         - [ ] `POST /_matrix/client/v3/logout/all`
     - [ ] 4.7 Account registration and management
         - [ ] `POST /_matrix/client/v3/account/deactivate`

@@ -89,10 +89,16 @@ class LoginController @Inject() (
    *
    * See https://spec.matrix.org/v1.14/client-server-api/#post_matrixclientv3logout
    */
-  def logOut(): Action[JsValue] = authenticatedAction { (request: AuthenticatedAction.AuthenticatedRequest[JsValue]) =>
-    // TODO: Implement this message.
-//    authRef.ask(ref => Auth.LogOut(sessionId))
-    val message = "foo"
-    Unauthorized(Json.obj("error_message" -> JsString(message)))
+  def logOut(): Action[JsValue] = authenticatedAction.async { (request: AuthenticatedAction.AuthenticatedRequest[JsValue]) =>
+    implicit val timeout: Timeout = 5.seconds
+
+    authRef.ask(ref => Auth.LogOut(request.currentSession.ulid, ref))
+      .map {
+        case Auth.LogoutSucceeded =>
+          Ok(Json.obj())
+        case Auth.LogoutFailed(message) =>
+          println(message)
+          InternalServerError(Json.obj("error_message" -> message))
+      }
   }
 }

@@ -1,6 +1,6 @@
 package net.jcain.spelt.service
 
-import net.jcain.spelt.models.User
+import net.jcain.spelt.models.{Session, User}
 import net.jcain.spelt.store.{SessionStore, UserStore}
 import net.jcain.spelt.support.DatabaseRollback
 import org.apache.pekko.actor.testkit.typed.scaladsl.ScalaTestWithActorTestKit
@@ -14,6 +14,10 @@ class AuthSpec extends ScalaTestWithActorTestKit with AnyWordSpecLike with Match
   trait ExistingUser {
     val existingPassword = "open-sesame"
     val existingUser: User = User("phredsmerd", Auth.hashPassword(existingPassword), "phredsmerd@example.com")
+  }
+
+  trait ExistingSession {
+    val existingSession: Session = Session(ULID.newULIDString, "foo.bar.baz")
   }
 
   trait LoginRequestParams extends ExistingUser {
@@ -63,7 +67,7 @@ class AuthSpec extends ScalaTestWithActorTestKit with AnyWordSpecLike with Match
             deviceId shouldEqual Some(requestDeviceId)
             deviceName shouldEqual Some(requestDeviceName)
 
-            replyTo ! SessionStore.SessionCreated(token, deviceId.get)
+            replyTo ! SessionStore.SessionCreated(sessionUlid, token, deviceId.get)
         }
 
         // Expect Auth to respond with LoginSucceeded.
@@ -72,6 +76,57 @@ class AuthSpec extends ScalaTestWithActorTestKit with AnyWordSpecLike with Match
             username shouldEqual existingUser.name
             receivedToken shouldEqual token
             deviceId shouldEqual requestDeviceId
+        }
+      }
+    }
+  }
+
+  "LogOut" when {
+    "session exists" should {
+      "respond with LogoutSucceeded" in new ExistingSession {
+        private val userStoreProbe = testKit.createTestProbe[UserStore.Request]()
+        private val sessionStoreProbe = testKit.createTestProbe[SessionStore.Request]()
+        private val auth = testKit.spawn(Auth(userStoreProbe.ref, sessionStoreProbe.ref))
+
+        // Send LogOut message to Auth.
+        private val probe = testKit.createTestProbe[Auth.Response]()
+        auth ! Auth.LogOut(existingSession.ulid, probe.ref)
+
+        // Expect SessionStore to receive DeleteSession; respond with SessionDeleted.
+        inside(sessionStoreProbe.expectMessageType[SessionStore.Request]) {
+          case SessionStore.DeleteSession(sessionId, replyTo) =>
+            sessionId shouldEqual existingSession.ulid
+
+            replyTo ! SessionStore.SessionDeleted
+        }
+
+        // Expect Auth to respond with LogoutSucceeded.
+        probe.expectMessage(Auth.LogoutSucceeded)
+      }
+    }
+
+    "session does not exist" should {
+      "respond with LogoutFailed" in {
+        val userStoreProbe = testKit.createTestProbe[UserStore.Request]()
+        val sessionStoreProbe = testKit.createTestProbe[SessionStore.Request]()
+        val auth = testKit.spawn(Auth(userStoreProbe.ref, sessionStoreProbe.ref))
+
+        // Send LogOut message to Auth.
+        val probe = testKit.createTestProbe[Auth.Response]()
+        auth ! Auth.LogOut("foobar", probe.ref)
+
+        // Expect SessionStore to receive DeleteSession; respond with SessionDeletionFailed.
+        inside(sessionStoreProbe.expectMessageType[SessionStore.Request]) {
+          case SessionStore.DeleteSession(sessionId, replyTo) =>
+            sessionId shouldEqual "foobar"
+
+            replyTo ! SessionStore.SessionDeletionFailed("Session not found")
+        }
+
+        // Expect Auth to respond with LogoutSucceeded.
+        inside(probe.expectMessageType[Auth.Response]) {
+          case Auth.LogoutFailed(message) =>
+            message should include ("Session not found")
         }
       }
     }
