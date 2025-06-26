@@ -3,6 +3,7 @@ package net.jcain.spelt.controllers
 import net.jcain.spelt.controllers.LoginController.supportedLoginFlows
 import net.jcain.spelt.models.Config
 import net.jcain.spelt.service.{Auth, AuthenticatedAction}
+import net.jcain.spelt.store.SessionStore
 import org.apache.pekko.actor.typed.scaladsl.AskPattern.Askable
 import org.apache.pekko.actor.typed.{ActorRef, Scheduler}
 import org.apache.pekko.util.Timeout
@@ -35,6 +36,7 @@ object LoginController:
  */
 class LoginController @Inject() (
   authRef: ActorRef[Auth.Request],
+  sessionStoreRef: ActorRef[SessionStore.Request],
   authenticatedAction: AuthenticatedAction,
   val controllerComponents: ControllerComponents
 )(
@@ -87,7 +89,9 @@ class LoginController @Inject() (
    *
    * See https://spec.matrix.org/v1.14/client-server-api/#post_matrixclientv3logout
    */
-  def logOut(): Action[JsValue] = authenticatedAction { // (request: AuthenticatedRequest[AnyContent]) =>
+  def logOut(): Action[JsValue] = authenticatedAction { (request: AuthenticatedAction.AuthenticatedRequest[JsValue]) =>
+    // TODO: Implement this message.
+//    authRef.ask(ref => Auth.LogOut(sessionId))
     val message = "foo"
     Unauthorized(Json.obj("error_message" -> JsString(message)))
   }

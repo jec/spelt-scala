@@ -2,7 +2,7 @@ package net.jcain.spelt.controllers
 
 import net.jcain.spelt.models.{Config, User}
 import net.jcain.spelt.service.Auth
-import net.jcain.spelt.store.UserStore
+import net.jcain.spelt.store.{SessionStore, UserStore}
 import net.jcain.spelt.support.DatabaseRollback
 import org.apache.pekko.actor.testkit.typed.scaladsl.ScalaTestWithActorTestKit
 import org.scalatest.Inside.inside
@@ -11,8 +11,10 @@ import org.scalatestplus.play.guice.*
 import play.api.libs.functional.syntax.toFunctionalBuilderOps
 import play.api.libs.json.*
 import play.api.libs.json.Reads.*
+import play.api.mvc.Headers
 import play.api.test.*
 import play.api.test.Helpers.*
+import play.api.test.CSRFTokenHelper._
 import wvlet.airframe.ulid.ULID
 
 class LoginControllerSpec extends PlaySpec with GuiceOneAppPerTest with Injecting with DatabaseRollback {
@@ -23,13 +25,28 @@ class LoginControllerSpec extends PlaySpec with GuiceOneAppPerTest with Injectin
     // Create User in database.
     private val userStore = testKit.spawn(UserStore())
     private val userStoreProbe = testKit.createTestProbe[UserStore.Response]()
+
     userStore ! UserStore.CreateUser(
       existingUser.name,
       existingPassword,
       existingUser.email,
       userStoreProbe.ref
     )
+
     userStoreProbe.expectMessage(UserStore.CreateUserResponse(Right(existingUser.name)))
+  }
+
+  trait ExistingSession extends ExistingUser {
+    private val sessionStoreRepo = testKit.spawn(SessionStore())
+    private val sessionStoreProbe = testKit.createTestProbe[SessionStore.Response]()
+
+    sessionStoreRepo !
+      SessionStore.GetOrCreateSession(existingUser.name, None, None, sessionStoreProbe.ref)
+
+    val existingSession: SessionStore.SessionCreated =
+      sessionStoreProbe.expectMessageType[SessionStore.SessionCreated]
+
+    val authHeader: Headers = Headers("Authorization" -> s"Bearer ${existingSession.token}")
   }
 
   trait LoginRequestParams extends ExistingUser {
@@ -109,6 +126,24 @@ class LoginControllerSpec extends PlaySpec with GuiceOneAppPerTest with Injectin
         )
 
         val Some(response) = route(app, FakeRequest(POST, "/_matrix/client/v3/login").withBody(payload)): @unchecked
+
+        status(response) mustBe UNAUTHORIZED
+      }
+    }
+  }
+
+  "POST /_matrix/client/v3/logout" when {
+    "user is logged in and Authorization header provided" should {
+      "respond with 200/Ok" in new ExistingSession {
+        val Some(response) = route(app, FakeRequest(POST, "/_matrix/client/v3/logout").withHeaders(("Authorization", s"Bearer ${existingSession.token}")).withJsonBody(Json.obj()).withCSRFToken): @unchecked
+
+        status(response) mustBe OK
+      }
+    }
+
+    "no Authorization header" should {
+      "respond with 401/Unauthorized" in {
+        val Some(response) = route(app, FakeRequest(POST, "/_matrix/client/v3/logout").withJsonBody(Json.obj())): @unchecked
 
         status(response) mustBe UNAUTHORIZED
       }

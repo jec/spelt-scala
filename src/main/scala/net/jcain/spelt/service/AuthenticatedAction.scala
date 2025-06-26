@@ -5,9 +5,10 @@ import net.jcain.spelt.store.SessionStore
 import org.apache.pekko.actor.typed.scaladsl.AskPattern.Askable
 import org.apache.pekko.actor.typed.{ActorRef, Scheduler}
 import org.apache.pekko.util.Timeout
-import play.api.libs.json.{JsValue, Json}
+import play.api.Logging
+import play.api.libs.json.JsValue
 import play.api.mvc.Results.Unauthorized
-import play.api.mvc.{ActionBuilder, ActionTransformer, AnyContent, BodyParsers, Request, Result, WrappedRequest}
+import play.api.mvc.{ActionBuilder, BodyParser, DefaultPlayBodyParsers, Request, Result, WrappedRequest}
 
 import java.time.ZonedDateTime
 import javax.inject.Inject
@@ -28,59 +29,46 @@ object AuthenticatedAction {
 }
 
 class AuthenticatedAction @Inject()(
-  sessionStore: ActorRef[SessionStore.Request],
-  val parser: BodyParsers.Default
+  val defaultParsers: DefaultPlayBodyParsers,
+  sessionStore: ActorRef[SessionStore.Request]
 )(
   implicit val executionContext: ExecutionContext,
   sch: Scheduler
 ) extends ActionBuilder[AuthenticatedAction.AuthenticatedRequest, JsValue]
-    /* with ActionTransformer[Request, AuthenticatedAction1.AuthenticatedRequest] */ {
+    with Logging {
   import AuthenticatedAction.AuthenticatedRequest
 
-  def invokeBlock[A](request: Request[A], block: AuthenticatedRequest[A] => Future[Result]) =
+  val parser: BodyParser[JsValue] = defaultParsers.json
+
+  def invokeBlock[A](request: Request[A], block: AuthenticatedRequest[A] => Future[Result]): Future[Result] =
     authenticate(request)
-      .map { authRequest => block(authRequest) }
-      .getOrElse {
-        Future.successful(Unauthorized(Json.obj("error_message" -> "Authentication failed")))
+      .flatMap {
+        case None => Future.successful(Unauthorized)
+        case Some(authRequest) =>
+          block(authRequest)
       }
 
-  private def authenticate[A](request: Request[A]): Future[AuthenticatedRequest[A]] =
+  private def authenticate[A](request: Request[A]): Future[Option[AuthenticatedRequest[A]]] =
     implicit val timeout: Timeout = 5.seconds
 
     request.headers.get("Authorization") match {
       case None =>
-        Future.failed(RuntimeException("Forbidden"))
+        logger.debug("No Authorization header")
+        Future.successful(None)
 
-      case Some(token) =>
-        sessionStore.ask(ref => SessionStore.VerifyToken(token, ref)).map {
-          case Success(SessionStore.TokenPassed) =>
-            // TODO: TokenPassed should provide these.
-            val user = User("foo", "bar", "baz")
-            val session = Session("foo", "bar")
-            val device = Device("foo", None, "baz", ZonedDateTime.now)
-            AuthenticatedRequest(user, session, device, request)
-        }
+      case Some(authValue) =>
+        logger.debug { s"Authorization: $authValue" }
+
+        if authValue.startsWith("Bearer ") then
+          sessionStore.ask(ref => SessionStore.VerifyToken(authValue.substring(7), ref)).map {
+            case SessionStore.TokenPassed =>
+              // TODO: TokenPassed should provide these.
+              val user = User("foo", "bar", "baz")
+              val session = Session("foo", "bar")
+              val device = Device("foo", None, "baz", ZonedDateTime.now)
+              Some(AuthenticatedRequest(user, session, device, request))
+          }
+        else
+          Future.successful(None)
     }
-
-  /*
-  def transform[A](
-    request: Request[A]
-  ): Future[AuthenticatedRequest[A]] =
-    implicit val timeout: Timeout = 3.seconds
-
-    request.headers.get("Authorization") match {
-      case None =>
-        Future.failed(RuntimeException("Forbidden"))
-
-      case Some(token) =>
-        sessionStore.ask(ref => SessionStore.VerifyToken(token, ref)).map {
-          case Success(SessionStore.TokenPassed) =>
-            // TODO: TokenPassed should provide these.
-            val user = User("foo", "bar", "baz")
-            val session = Session("foo", "bar")
-            val device = Device("foo", None, "baz", ZonedDateTime.now)
-            AuthenticatedRequest(user, session, device, request)
-        }
-    }
-  */
 }
