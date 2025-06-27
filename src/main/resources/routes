@@ -1,8 +1,9 @@
 # Informational
-GET     /_matrix/client/versions    net.jcain.spelt.controllers.ConfigController.versions()
-GET     /.well-known/matrix/client  net.jcain.spelt.controllers.ConfigController.wellKnown()
+GET     /_matrix/client/versions       net.jcain.spelt.controllers.ConfigController.versions()
+GET     /.well-known/matrix/client     net.jcain.spelt.controllers.ConfigController.wellKnown()
 
 # Authentication and session
-GET     /_matrix/client/v3/login    net.jcain.spelt.controllers.LoginController.loginTypes()
-POST    /_matrix/client/v3/login    net.jcain.spelt.controllers.LoginController.logIn()
-POST    /_matrix/client/v3/logout   net.jcain.spelt.controllers.LoginController.logOut()
+GET     /_matrix/client/v3/login       net.jcain.spelt.controllers.LoginController.loginTypes()
+POST    /_matrix/client/v3/login       net.jcain.spelt.controllers.LoginController.logIn()
+POST    /_matrix/client/v3/logout      net.jcain.spelt.controllers.LoginController.logOut()
+POST    /_matrix/client/v3/logout/all  net.jcain.spelt.controllers.LoginController.logOutAll()

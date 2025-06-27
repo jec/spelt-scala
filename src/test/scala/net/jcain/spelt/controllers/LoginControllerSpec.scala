@@ -152,4 +152,25 @@ class LoginControllerSpec extends PlaySpec with GuiceOneAppPerTest with Injectin
       }
     }
   }
+
+  "POST /_matrix/client/v3/logout/all" when {
+    "User is logged in and Authorization header provided" should {
+      "respond with 200/Ok" in new ExistingSession {
+        val Some(response) = route(app, FakeRequest(POST, "/_matrix/client/v3/logout/all").withHeaders(("Authorization", s"Bearer ${existingSession.token}")).withJsonBody(Json.obj()).withCSRFToken): @unchecked
+        status(response) mustBe OK
+
+        // A second request should be unauthorized.
+        val Some(response_2) = route(app, FakeRequest(POST, "/_matrix/client/v3/logout/all").withHeaders(("Authorization", s"Bearer ${existingSession.token}")).withJsonBody(Json.obj()).withCSRFToken): @unchecked
+        status(response_2) mustBe UNAUTHORIZED
+      }
+    }
+
+    "no Authorization header" should {
+      "respond with 401/Unauthorized" in {
+        val Some(response) = route(app, FakeRequest(POST, "/_matrix/client/v3/logout/all").withJsonBody(Json.obj())): @unchecked
+
+        status(response) mustBe UNAUTHORIZED
+      }
+    }
+  }
 }

@@ -96,7 +96,23 @@ class LoginController @Inject() (
         case Auth.LogoutSucceeded =>
           Ok(Json.obj())
         case Auth.LogoutFailed(message) =>
-          println(message)
+          InternalServerError(Json.obj("error_message" -> message))
+      }
+  }
+
+  /**
+   * POST /_matrix/client/v3/logout/all
+   *
+   * [Authenticated] Deletes all Sessions and Devices of the current User
+   *
+   * See https://spec.matrix.org/v1.14/client-server-api/#post_matrixclientv3logoutall
+   */
+  def logOutAll(): Action[JsValue] = authenticatedAction.async { (request: AuthenticatedAction.AuthenticatedRequest[JsValue]) =>
+    authRef.ask(ref => Auth.LogOutAll(request.currentUser.name, ref))
+      .map {
+        case Auth.LogoutAllSucceeded =>
+          Ok(Json.obj())
+        case Auth.LogoutAllFailed(message) =>
           InternalServerError(Json.obj("error_message" -> message))
       }
   }
