@@ -68,7 +68,7 @@ class LoginController @Inject() (
   def logIn(): Action[JsValue] = Action.async(parse.json) { request =>
     val body = request.body
 
-    authRef.ask(ref => Auth.LogIn(body, ref))
+    authRef.ask(ref => Auth.LogIn(body, request.remoteAddress, ref))
       .map {
         case Auth.LoginSucceeded(name, token, deviceId) =>
           Ok(Json.obj(

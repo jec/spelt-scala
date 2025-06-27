@@ -58,7 +58,7 @@ class AuthSpec extends ScalaTestWithActorTestKit with AnyWordSpecLike with Match
 
         // Send LogIn message to Auth.
         private val probe = testKit.createTestProbe[Auth.Response]()
-        auth ! Auth.LogIn(parsedParams, probe.ref)
+        auth ! Auth.LogIn(parsedParams, "1.2.3.4", probe.ref)
 
         // Expect UserStore to receive GetUser; respond with CreateUserResponse.
         inside(userStoreProbe.expectMessageType[UserStore.Request]) {
@@ -73,7 +73,7 @@ class AuthSpec extends ScalaTestWithActorTestKit with AnyWordSpecLike with Match
 
         // Expect SessionStore to receive GetOrCreateSession; respond with SessionCreated.
         inside(sessionStoreProbe.expectMessageType[SessionStore.Request]) {
-          case SessionStore.GetOrCreateSession(username, deviceId, deviceName, replyTo) =>
+          case SessionStore.GetOrCreateSession(username, "1.2.3.4", deviceId, deviceName, replyTo) =>
             username shouldEqual existingUser.name
             deviceId shouldEqual Some(requestDeviceId)
             deviceName shouldEqual Some(requestDeviceName)

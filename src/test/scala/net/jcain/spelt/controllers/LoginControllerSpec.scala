@@ -41,7 +41,7 @@ class LoginControllerSpec extends PlaySpec with GuiceOneAppPerTest with Injectin
     private val sessionStoreProbe = testKit.createTestProbe[SessionStore.Response]()
 
     sessionStoreRepo !
-      SessionStore.GetOrCreateSession(existingUser.name, None, None, sessionStoreProbe.ref)
+      SessionStore.GetOrCreateSession(existingUser.name, "1.2.3.4", None, None, sessionStoreProbe.ref)
 
     val existingSession: SessionStore.SessionCreated =
       sessionStoreProbe.expectMessageType[SessionStore.SessionCreated]

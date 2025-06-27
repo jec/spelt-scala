@@ -46,6 +46,7 @@ import scala.util.{Failure, Success}
 object SessionStore {
   sealed trait Request
   final case class GetOrCreateSession(username: String,
+                                      remoteIpAddress: String,
                                       deviceId: Option[String],
                                       deviceName: Option[String],
                                       replyTo: ActorRef[Response]) extends Request
@@ -71,15 +72,15 @@ object SessionStore {
    * @return subsequent Behaviors
    */
   def apply(): Behavior[Request] = Behaviors.receiveMessage {
-    case GetOrCreateSession(name, deviceIdOption, deviceNameOption, replyTo) =>
+    case GetOrCreateSession(name, remoteIpAddress, deviceIdOption, deviceNameOption, replyTo) =>
       deviceIdOption match {
         // If deviceId isn't specified, create a new Session.
         case None =>
-          createSession(name, deviceNameOption, replyTo)
+          createSession(name, remoteIpAddress, deviceNameOption, replyTo)
 
         // Else look up Session.
         case Some(deviceId) =>
-          readByDevice(name, deviceId, deviceNameOption, replyTo)
+          readByDevice(name, remoteIpAddress, deviceId, deviceNameOption, replyTo)
       }
 
       Behaviors.same
@@ -106,12 +107,11 @@ object SessionStore {
    * @param deviceName a device name to use (optional)
    * @param replyTo requesting Actor
    */
-  private def readByDevice(
-    username: String,
-    deviceId: String,
-    deviceName: Option[String],
-    replyTo: ActorRef[Response]
-  ): Unit =
+  private def readByDevice(username: String,
+                           remoteIpAddress: String,
+                           deviceId: String,
+                           deviceName: Option[String],
+                           replyTo: ActorRef[Response]): Unit =
     c"""
       MATCH (u:User)-[:AUTHENTICATED_AS]->(s:Session)-[:CONNECTED_FROM]->(d:Device)
       WHERE u.name = $username
@@ -124,7 +124,7 @@ object SessionStore {
         case Success(ulid :: _) =>
           updateSession(ulid, replyTo)
         case Success(Nil) =>
-          createSession(username, deviceName, replyTo)
+          createSession(username, remoteIpAddress, deviceName, replyTo)
         case Failure(error) =>
           replyTo ! SessionFailed(error)
 
@@ -137,7 +137,10 @@ object SessionStore {
    * @param deviceNameOption device name
    * @param replyTo requesting Actor
    */
-  private def createSession(username: String, deviceNameOption: Option[String], replyTo: ActorRef[Response]): Unit =
+  private def createSession(username: String, 
+                            remoteIpAddress: String, 
+                            deviceNameOption: Option[String], 
+                            replyTo: ActorRef[Response]): Unit =
     val ulid = ULID.newULIDString
     val deviceId = ULID.newULIDString
     val token = Token.generateAndSign(ulid)
@@ -155,7 +158,9 @@ object SessionStore {
       }),
       (d:Device {
         identifier: $deviceId,
-        displayName: $deviceNameOption
+        displayName: $deviceNameOption,
+        lastSeenIp: $remoteIpAddress,
+        lastSeenAt: datetime()
       }),
       (u)-[:AUTHENTICATED_AS]->(s)-[:CONNECTED_FROM]->(d)<-[:OWNS]-(u)
       RETURN count(u)

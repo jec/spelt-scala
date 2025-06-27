@@ -18,9 +18,6 @@ lazy val spelt = (project in file("."))
     version := "0.1.0-SNAPSHOT",
     scalacOptions += "-Wunused:imports",
     coverageExcludedPackages := ".*Reverse.*Controller;.*Routes;.*RoutesPrefix",
-    // For `sbt run`, listen on IPv4 localhost.
-    // (see https://www.playframework.com/documentation/3.0.x/ConfigFile#Using-with-the-run-command)
-    PlayKeys.devSettings += "play.server.http.address" -> "127.0.0.1",
     libraryDependencies ++= Seq(
       guice,
       "ch.qos.logback" % "logback-classic" % "1.5.18" % "runtime",

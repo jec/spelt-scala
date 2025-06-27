@@ -41,8 +41,8 @@ object Auth extends ActorModule {
 
   // Actor messages
   sealed trait Request
-  final case class LogIn(parsedParams: JsValue, replyTo: ActorRef[Response]) extends Request
-  private case class UserFound(user: User, password: String, deviceIdOption: Option[String], deviceNameOption: Option[String], replyTo: ActorRef[Response]) extends Request
+  final case class LogIn(parsedParams: JsValue, remoteIpAddress: String, replyTo: ActorRef[Response]) extends Request
+  private case class UserFound(user: User, password: String, remoteIpAddress: String, deviceIdOption: Option[String], deviceNameOption: Option[String], replyTo: ActorRef[Response]) extends Request
   private case class UserNotFound(name: String, replyTo: ActorRef[Response]) extends Request
   private case class SessionCreated(name: String, token: String, deviceId: String, replyTo: ActorRef[Response]) extends Request
   private case class OtherFailure(message: String, replyTo: ActorRef[Response]) extends Request
@@ -98,12 +98,12 @@ object Auth extends ActorModule {
   ): Behavior[Request] =
     Behaviors.setup { context =>
       Behaviors.receiveMessage {
-        case LogIn(parsedParams, replyTo) =>
-          requestUser(parsedParams, context, userStore, replyTo)
+        case LogIn(parsedParams, remoteIpAddress, replyTo) =>
+          requestUser(parsedParams, remoteIpAddress, context, userStore, replyTo)
           Behaviors.same
 
-        case UserFound(user, password, deviceIdOption, deviceNameOption, replyTo) =>
-          requestSession(user, password, deviceIdOption, deviceNameOption, context, sessionStore, replyTo)
+        case UserFound(user, password, remoteIpAddress, deviceIdOption, deviceNameOption, replyTo) =>
+          requestSession(user, password, remoteIpAddress, deviceIdOption, deviceNameOption, context, sessionStore, replyTo)
           Behaviors.same
 
         case UserNotFound(_, replyTo) =>
@@ -176,6 +176,7 @@ object Auth extends ActorModule {
    * @param replyTo requesting Actor
    */
   private def requestUser(parsedParams: JsValue,
+                          remoteIpAddress: String,
                           context: ActorContext[Request],
                           userStore: ActorRef[UserStore.Request],
                           replyTo: ActorRef[Response]): Unit =
@@ -192,7 +193,7 @@ object Auth extends ActorModule {
         // Ask UserStore for the User and translate response to an Auth.Request.
         context.ask(userStore, ref => UserStore.GetUser(username, ref)) {
           case Success(UserStore.GetUserResponse(Right(Some(user)))) =>
-            UserFound(user, password, deviceIdOption, deviceNameOption, replyTo)
+            UserFound(user, password, remoteIpAddress, deviceIdOption, deviceNameOption, replyTo)
 
           case Success(UserStore.GetUserResponse(Right(None))) =>
             UserNotFound(username, replyTo)
@@ -221,6 +222,7 @@ object Auth extends ActorModule {
    */
   private def requestSession(user: User,
                              password: String,
+                             remoteIpAddress: String,
                              deviceIdOption: Option[String],
                              deviceNameOption: Option[String],
                              context: ActorContext[Request],
@@ -229,7 +231,7 @@ object Auth extends ActorModule {
     implicit val timeout: Timeout = 3.seconds
 
     if (passwordMatches(user.encryptedPassword, password)) {
-      context.ask(sessionStore, ref => SessionStore.GetOrCreateSession(user.name, deviceIdOption, deviceNameOption, ref)) {
+      context.ask(sessionStore, ref => SessionStore.GetOrCreateSession(user.name, remoteIpAddress, deviceIdOption, deviceNameOption, ref)) {
         case Success(SessionStore.SessionCreated(ulid, token, deviceId)) =>
           SessionCreated(user.name, token, deviceId, replyTo)
         case Success(SessionStore.SessionFailed(error)) =>

@@ -32,7 +32,7 @@ class SessionStoreSpec extends ScalaTestWithActorTestKit with AnyWordSpecLike wi
     val sessionStoreProbe: TestProbe[SessionStore.Response] = testKit.createTestProbe[SessionStore.Response]()
 
     sessionStoreRepo !
-      SessionStore.GetOrCreateSession(existingUser.name, None, None, sessionStoreProbe.ref)
+      SessionStore.GetOrCreateSession(existingUser.name, "1.2.3.4", None, None, sessionStoreProbe.ref)
 
     val existingSession: SessionStore.SessionCreated =
       sessionStoreProbe.expectMessageType[SessionStore.SessionCreated]
@@ -41,14 +41,14 @@ class SessionStoreSpec extends ScalaTestWithActorTestKit with AnyWordSpecLike wi
   trait ExistingSessions extends ExistingSession {
     // Create a second session for the User.
     sessionStoreRepo !
-      SessionStore.GetOrCreateSession(existingUser.name, None, None, sessionStoreProbe.ref)
+      SessionStore.GetOrCreateSession(existingUser.name, "1.2.3.4", None, None, sessionStoreProbe.ref)
 
     val existingSession2: SessionStore.SessionCreated =
       sessionStoreProbe.expectMessageType[SessionStore.SessionCreated]
 
     // Create a third session for the User.
     sessionStoreRepo !
-      SessionStore.GetOrCreateSession(existingUser.name, None, None, sessionStoreProbe.ref)
+      SessionStore.GetOrCreateSession(existingUser.name, "1.2.3.4", None, None, sessionStoreProbe.ref)
 
     val existingSession3: SessionStore.SessionCreated =
       sessionStoreProbe.expectMessageType[SessionStore.SessionCreated]
@@ -60,7 +60,7 @@ class SessionStoreSpec extends ScalaTestWithActorTestKit with AnyWordSpecLike wi
         private val repo = testKit.spawn(SessionStore())
         private val probe = testKit.createTestProbe[SessionStore.Response]()
 
-        repo ! SessionStore.GetOrCreateSession(existingUser.name, None, None, probe.ref)
+        repo ! SessionStore.GetOrCreateSession(existingUser.name, "1.2.3.4", None, None, probe.ref)
 
         inside(probe.expectMessageType[SessionStore.Response]) {
           case SessionStore.SessionCreated(ulid, token, deviceId) =>
@@ -80,7 +80,7 @@ class SessionStoreSpec extends ScalaTestWithActorTestKit with AnyWordSpecLike wi
     "User has a previous Session" should {
       "respond with SessionCreated with the same device ID and a new token" in new ExistingSession {
         sessionStoreRepo !
-          SessionStore.GetOrCreateSession(existingUser.name, Some(existingSession.deviceId), None, sessionStoreProbe.ref)
+          SessionStore.GetOrCreateSession(existingUser.name, "1.2.3.4", Some(existingSession.deviceId), None, sessionStoreProbe.ref)
 
         inside(sessionStoreProbe.expectMessageType[SessionStore.Response]) {
           case SessionStore.SessionCreated(ulid, token, deviceId) =>
@@ -106,7 +106,7 @@ class SessionStoreSpec extends ScalaTestWithActorTestKit with AnyWordSpecLike wi
         val repo = testKit.spawn(SessionStore())
         val probe = testKit.createTestProbe[SessionStore.Response]()
 
-        repo ! SessionStore.GetOrCreateSession("phred", Some("foo"), None, probe.ref)
+        repo ! SessionStore.GetOrCreateSession("phred", "1.2.3.4", Some("foo"), None, probe.ref)
 
         inside(probe.expectMessageType[SessionStore.Response]) {
           case SessionStore.SessionCreated(ulid, token, deviceId) =>
@@ -128,7 +128,7 @@ class SessionStoreSpec extends ScalaTestWithActorTestKit with AnyWordSpecLike wi
         val repo = testKit.spawn(SessionStore())
         val probe = testKit.createTestProbe[SessionStore.Response]()
 
-        repo ! SessionStore.GetOrCreateSession("phred", None, None, probe.ref)
+        repo ! SessionStore.GetOrCreateSession("phred", "1.2.3.4", None, None, probe.ref)
 
         inside(probe.expectMessageType[SessionStore.Response]) {
           case SessionStore.UserNotFound =>
