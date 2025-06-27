@@ -27,6 +27,11 @@ import scala.util.{Failure, Success}
  *   * SessionDeleted
  *   * SessionDeletionFailed
  *
+ * * DeleteAllSessions -- deletes all Sessions and Devices belonging to `username`
+ *   Responses:
+ *   * AllSessionsDeleted
+ *   * AllSessionsDeletionFailed
+ *
  * * VerifyToken -- check whether a `token` references a Session node
  *   Responses:
  *   * TokenPassed
@@ -45,6 +50,7 @@ object SessionStore {
                                       deviceName: Option[String],
                                       replyTo: ActorRef[Response]) extends Request
   final case class DeleteSession(ulid: String, replyTo: ActorRef[Response]) extends Request
+  final case class DeleteAllSessions(username: String, replyTo: ActorRef[Response]) extends Request
   final case class VerifyToken(token: String, replyTo: ActorRef[Response]) extends Request
 
   sealed trait Response
@@ -53,6 +59,8 @@ object SessionStore {
   final case class SessionFailed(error: Throwable) extends Response
   object SessionDeleted extends Response
   final case class SessionDeletionFailed(message: String) extends Response
+  object AllSessionsDeleted extends Response
+  final case class AllSessionsDeletionFailed(message: String) extends Response
   final case class TokenPassed(user: User, session: Session, device: Device) extends Response
   final case class TokenFailed(error: Throwable) extends Response
   final case class TokenOtherError(error: Throwable) extends Response
@@ -78,6 +86,10 @@ object SessionStore {
 
     case DeleteSession(ulid, replyTo) =>
       deleteSession(ulid, replyTo)
+      Behaviors.same
+
+    case DeleteAllSessions(username, replyTo) =>
+      deleteAllSessions(username, replyTo)
       Behaviors.same
 
     case VerifyToken(token, replyTo) =>
@@ -137,22 +149,28 @@ object SessionStore {
     c"""
       MATCH (u:User)
       WHERE u.name = $username
-      CREATE (u)-[:AUTHENTICATED_AS]->(s:Session {
+      CREATE (s:Session {
         ulid: $ulid,
         token: $token
-      })-[:CONNECTED_FROM]->(d:Device {
+      }),
+      (d:Device {
         identifier: $deviceId,
         displayName: $deviceNameOption
-      })
-      RETURN d.identifier
+      }),
+      (u)-[:AUTHENTICATED_AS]->(s)-[:CONNECTED_FROM]->(d)<-[:OWNS]-(u)
+      RETURN count(u)
     """
-      .query(ResultMapper.string)
-      .list(Database.driver)
+      .query(ResultMapper.int)
+      .withResultSummary
+      .single(Database.driver)
       .onComplete:
-        case Success(_ :: _) =>
-          replyTo ! SessionCreated(ulid, token, deviceId)
-        case Success(Nil) =>
+        case Success((userCount, _)) if userCount == 0 =>
           replyTo ! UserNotFound
+        // Is checking the results in such detail unnecessary?
+        case Success((_, summary)) if summary.counters.nodesCreated == 2 && summary.counters.relationshipsCreated == 3 =>
+          replyTo ! SessionCreated(ulid, token, deviceId)
+        case Success((_, summary)) =>
+          replyTo ! SessionFailed(RuntimeException(s"Created ${summary.counters.nodesCreated} nodes and ${summary.counters.relationshipsCreated} relationships; expected 2 and 3"))
         case Failure(error) =>
           replyTo ! SessionFailed(error)
 
@@ -198,7 +216,25 @@ object SessionStore {
           if result.counters.nodesDeleted == 1 then
             replyTo ! SessionDeleted
           else
-            replyTo ! SessionDeletionFailed(s"Session not found with ulid $ulid")
+            replyTo ! SessionDeletionFailed(s"Session not found with ID $ulid")
+
+  private def deleteAllSessions(username: String, replyTo: ActorRef[Response]): Unit =
+    c"""MATCH (u:User)
+        WHERE u.name = $username
+        MATCH (u)-[:AUTHENTICATED_AS]->(s:Session)
+        MATCH (u)-[:OWNS]->(d:Device)
+        WHERE u.name = $username
+        DETACH DELETE s, d"""
+      .execute
+      .resultSummary(Database.driver)
+      .onComplete:
+        case Failure(error) =>
+          replyTo ! AllSessionsDeletionFailed(error.getMessage)
+        case Success(result) =>
+          if result.counters.nodesDeleted > 0 then
+            replyTo ! AllSessionsDeleted
+          else
+            replyTo ! AllSessionsDeletionFailed(s"No Sessions or Devices found with user $username")
 
   /**
    * Verifies a token by decoding it and then looking up the Session it references

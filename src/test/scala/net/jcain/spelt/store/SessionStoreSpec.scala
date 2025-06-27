@@ -3,7 +3,8 @@ package net.jcain.spelt.store
 import net.jcain.spelt.models.User
 import net.jcain.spelt.service.{Auth, Token}
 import net.jcain.spelt.support.DatabaseRollback
-import org.apache.pekko.actor.testkit.typed.scaladsl.ScalaTestWithActorTestKit
+import org.apache.pekko.actor.testkit.typed.scaladsl.{ScalaTestWithActorTestKit, TestProbe}
+import org.apache.pekko.actor.typed.ActorRef
 import org.scalatest.Inside.inside
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
@@ -27,8 +28,8 @@ class SessionStoreSpec extends ScalaTestWithActorTestKit with AnyWordSpecLike wi
   }
 
   trait ExistingSession extends ExistingUser {
-    private val sessionStoreRepo = testKit.spawn(SessionStore())
-    private val sessionStoreProbe = testKit.createTestProbe[SessionStore.Response]()
+    val sessionStoreRepo: ActorRef[SessionStore.Request] = testKit.spawn(SessionStore())
+    val sessionStoreProbe: TestProbe[SessionStore.Response] = testKit.createTestProbe[SessionStore.Response]()
 
     sessionStoreRepo !
       SessionStore.GetOrCreateSession(existingUser.name, None, None, sessionStoreProbe.ref)
@@ -37,10 +38,25 @@ class SessionStoreSpec extends ScalaTestWithActorTestKit with AnyWordSpecLike wi
       sessionStoreProbe.expectMessageType[SessionStore.SessionCreated]
   }
 
+  trait ExistingSessions extends ExistingSession {
+    // Create a second session for the User.
+    sessionStoreRepo !
+      SessionStore.GetOrCreateSession(existingUser.name, None, None, sessionStoreProbe.ref)
+
+    val existingSession2: SessionStore.SessionCreated =
+      sessionStoreProbe.expectMessageType[SessionStore.SessionCreated]
+
+    // Create a third session for the User.
+    sessionStoreRepo !
+      SessionStore.GetOrCreateSession(existingUser.name, None, None, sessionStoreProbe.ref)
+
+    val existingSession3: SessionStore.SessionCreated =
+      sessionStoreProbe.expectMessageType[SessionStore.SessionCreated]
+  }
+
   "GetOrCreateSession" when {
-    "user has no previous session" should {
+    "User has no previous Session" should {
       "respond with SessionCreated" in new ExistingUser {
-        // Send message and check response.
         private val repo = testKit.spawn(SessionStore())
         private val probe = testKit.createTestProbe[SessionStore.Response]()
 
@@ -61,16 +77,12 @@ class SessionStoreSpec extends ScalaTestWithActorTestKit with AnyWordSpecLike wi
       }
     }
 
-    "user has a previous session" should {
+    "User has a previous Session" should {
       "respond with SessionCreated with the same device ID and a new token" in new ExistingSession {
-        private val repo = testKit.spawn(SessionStore())
-        private val probe = testKit.createTestProbe[SessionStore.Response]()
+        sessionStoreRepo !
+          SessionStore.GetOrCreateSession(existingUser.name, Some(existingSession.deviceId), None, sessionStoreProbe.ref)
 
-        // Send message and check response.
-        repo !
-          SessionStore.GetOrCreateSession(existingUser.name, Some(existingSession.deviceId), None, probe.ref)
-
-        inside(probe.expectMessageType[SessionStore.Response]) {
+        inside(sessionStoreProbe.expectMessageType[SessionStore.Response]) {
           case SessionStore.SessionCreated(ulid, token, deviceId) =>
             ULID.fromString(ulid) shouldBe a [ULID]
             token should not equal existingSession.token
@@ -79,7 +91,7 @@ class SessionStoreSpec extends ScalaTestWithActorTestKit with AnyWordSpecLike wi
       }
     }
 
-    "previous session not found" should {
+    "previous Session not found" should {
       "respond with SessionCreated with the same device ID and a new token" in {
         // Create User.
         val userRepo = testKit.spawn(UserStore())
@@ -111,32 +123,31 @@ class SessionStoreSpec extends ScalaTestWithActorTestKit with AnyWordSpecLike wi
       }
     }
 
-    "user not found" should {
+    "User does not exist" should {
       "respond with UserNotFound" in {
-        // Send message and check response.
         val repo = testKit.spawn(SessionStore())
         val probe = testKit.createTestProbe[SessionStore.Response]()
 
         repo ! SessionStore.GetOrCreateSession("phred", None, None, probe.ref)
 
-        inside(probe.expectMessage(SessionStore.UserNotFound))
+        inside(probe.expectMessageType[SessionStore.Response]) {
+          case SessionStore.UserNotFound =>
+            println("foo")
+        }
       }
     }
   }
 
   "DeleteSession" when {
-    "session exists" should {
+    "Session exists" should {
       "respond with SessionDeleted" in new ExistingSession {
-        private val repo = testKit.spawn(SessionStore())
-        private val probe = testKit.createTestProbe[SessionStore.Response]()
+        sessionStoreRepo ! SessionStore.DeleteSession(existingSession.ulid, sessionStoreProbe.ref)
 
-        repo ! SessionStore.DeleteSession(existingSession.ulid, probe.ref)
-
-        probe.expectMessage(SessionStore.SessionDeleted)
+        sessionStoreProbe.expectMessage(SessionStore.SessionDeleted)
       }
     }
 
-    "session does not exist" should {
+    "Session does not exist" should {
       "respond with SessionDeletionFailed" in {
         val repo = testKit.spawn(SessionStore())
         val probe = testKit.createTestProbe[SessionStore.Response]()
@@ -145,7 +156,31 @@ class SessionStoreSpec extends ScalaTestWithActorTestKit with AnyWordSpecLike wi
 
         inside(probe.expectMessageType[SessionStore.SessionDeletionFailed]) {
           case SessionStore.SessionDeletionFailed(error) =>
-            error should include("Session not found")
+            error should include("ID foobar")
+        }
+      }
+    }
+  }
+
+  "DeleteAllSessions" when {
+    "User exists and has Sessions" should {
+      "respond with AllSessionsDeleted" in new ExistingSessions {
+        sessionStoreRepo ! SessionStore.DeleteAllSessions(existingUser.name, sessionStoreProbe.ref)
+
+        sessionStoreProbe.expectMessage(SessionStore.AllSessionsDeleted)
+      }
+    }
+
+    "User does not exist" should {
+      "respond with SessionDeletionFailed" in {
+        val repo = testKit.spawn(SessionStore())
+        val probe = testKit.createTestProbe[SessionStore.Response]()
+
+        repo ! SessionStore.DeleteAllSessions("foobar", probe.ref)
+
+        inside(probe.expectMessageType[SessionStore.Response]) {
+          case SessionStore.AllSessionsDeletionFailed(error) =>
+            error should include("user foobar")
         }
       }
     }
@@ -155,12 +190,9 @@ class SessionStoreSpec extends ScalaTestWithActorTestKit with AnyWordSpecLike wi
     "JWT is valid" when {
       "session exists" should {
         "respond with TokenPassed" in new ExistingSession {
-          private val repo = testKit.spawn(SessionStore())
-          private val probe = testKit.createTestProbe[SessionStore.Response]()
+          sessionStoreRepo ! SessionStore.VerifyToken(existingSession.token, sessionStoreProbe.ref)
 
-          repo ! SessionStore.VerifyToken(existingSession.token, probe.ref)
-
-          probe.expectMessageType[SessionStore.TokenPassed]
+          sessionStoreProbe.expectMessageType[SessionStore.TokenPassed]
         }
       }
 
