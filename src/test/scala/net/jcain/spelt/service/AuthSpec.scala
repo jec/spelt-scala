@@ -10,6 +10,12 @@ import org.scalatest.wordspec.AnyWordSpecLike
 import play.api.libs.json.{JsObject, Json}
 import wvlet.airframe.ulid.ULID
 
+/**
+ * Tests the message interface of the `Auth` actor
+ *
+ * These tests are a departure from most of the other "unit" tests in that these mock the requests
+ * and responses of the various other actors with which `Auth` communicates.
+ */
 class AuthSpec extends ScalaTestWithActorTestKit with AnyWordSpecLike with Matchers with DatabaseRollback {
   trait ExistingUser {
     val existingPassword = "open-sesame"
