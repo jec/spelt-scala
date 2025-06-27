@@ -43,6 +43,8 @@ class LoginController @Inject() (
   implicit xc: ExecutionContext,
   sch: Scheduler
 ) extends BaseController {
+  implicit val timeout: Timeout = 5.seconds
+
   /**
    * GET /_matrix/client/v3/login
    *
@@ -64,7 +66,6 @@ class LoginController @Inject() (
    * See https://spec.matrix.org/v1.14/client-server-api/#post_matrixclientv3login
    */
   def logIn(): Action[JsValue] = Action.async(parse.json) { request =>
-    implicit val timeout: Timeout = 5.seconds
     val body = request.body
 
     authRef.ask(ref => Auth.LogIn(body, ref))
@@ -90,8 +91,6 @@ class LoginController @Inject() (
    * See https://spec.matrix.org/v1.14/client-server-api/#post_matrixclientv3logout
    */
   def logOut(): Action[JsValue] = authenticatedAction.async { (request: AuthenticatedAction.AuthenticatedRequest[JsValue]) =>
-    implicit val timeout: Timeout = 5.seconds
-
     authRef.ask(ref => Auth.LogOut(request.currentSession.ulid, ref))
       .map {
         case Auth.LogoutSucceeded =>

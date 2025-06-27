@@ -10,11 +10,9 @@ import play.api.libs.json.JsValue
 import play.api.mvc.Results.Unauthorized
 import play.api.mvc.{ActionBuilder, BodyParser, DefaultPlayBodyParsers, Request, Result, WrappedRequest}
 
-import java.time.ZonedDateTime
 import javax.inject.Inject
 import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration.DurationInt
-import scala.util.{Failure, Success}
 
 object AuthenticatedAction {
   class AuthenticatedRequest[+A](

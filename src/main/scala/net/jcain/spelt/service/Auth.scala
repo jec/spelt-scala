@@ -24,13 +24,20 @@ import scala.util.{Failure, Success}
  *   * LoginSucceeded
  *   * LoginFailed
  *
- * * LogOut -- log out the authenticated user
+ * * LogOut -- log out the authenticated user's session
  *   Responses:
  *   * LogoutSucceeded
  *   * LogoutFailed
+ *
+ * * LogOutAll -- log out of all the authenticated user's sessions
+ *   Responses:
+ *   * LogoutAllSucceeded
+ *   * LogoutAllFailed
  */
 object Auth extends ActorModule {
   type Message = Request
+
+  implicit val timeout: Timeout = 3.seconds
 
   // Actor messages
   sealed trait Request
@@ -39,15 +46,20 @@ object Auth extends ActorModule {
   private case class UserNotFound(name: String, replyTo: ActorRef[Response]) extends Request
   private case class SessionCreated(name: String, token: String, deviceId: String, replyTo: ActorRef[Response]) extends Request
   private case class OtherFailure(message: String, replyTo: ActorRef[Response]) extends Request
-  final case class LogOut(token: String, replyTo: ActorRef[Response]) extends Request
+  final case class LogOut(sessionId: String, replyTo: ActorRef[Response]) extends Request
   private final case class SessionDeleted(replyTo: ActorRef[Response]) extends Request
   private final case class SessionNotDeleted(message: String, replyTo: ActorRef[Response]) extends Request
+  final case class LogOutAll(username: String, replyTo: ActorRef[Response]) extends Request
+  private final case class AllSessionsDeleted(replyTo: ActorRef[Response]) extends Request
+  private final case class AllSessionsNotDeleted(message: String, replyTo: ActorRef[Response]) extends Request
 
   sealed trait Response
   final case class LoginSucceeded(name: String, token: String, deviceId: String) extends Response
   final case class LoginFailed(message: String) extends Response
   object LogoutSucceeded extends Response
   final case class LogoutFailed(message: String) extends Response
+  object LogoutAllSucceeded extends Response
+  final case class LogoutAllFailed(message: String) extends Response
 
   // JSON classes
   case class Identifier(`type`: String, user: String)
@@ -106,8 +118,8 @@ object Auth extends ActorModule {
           replyTo ! LoginFailed(message)
           Behaviors.same
 
-        case LogOut(token, replyTo) =>
-          requestSessionDeletion(token, context, sessionStore, replyTo)
+        case LogOut(sessionId, replyTo) =>
+          requestSessionDeletion(sessionId, context, sessionStore, replyTo)
           Behaviors.same
 
         case SessionDeleted(replyTo) =>
@@ -116,6 +128,18 @@ object Auth extends ActorModule {
 
         case SessionNotDeleted(message, replyTo) =>
           replyTo ! LogoutFailed(message)
+          Behaviors.same
+
+        case LogOutAll(username, replyTo) =>
+          requestAllSessionsDeletion(username, context, sessionStore, replyTo)
+          Behaviors.same
+
+        case AllSessionsDeleted(replyTo) =>
+          replyTo ! LogoutAllSucceeded
+          Behaviors.same
+
+        case AllSessionsNotDeleted(message, replyTo) =>
+          replyTo ! LogoutAllFailed(message)
           Behaviors.same
       }
     }
@@ -231,5 +255,16 @@ object Auth extends ActorModule {
         SessionDeleted(replyTo)
       case Success(SessionStore.SessionDeletionFailed(message)) =>
         SessionNotDeleted(message, replyTo)
+    }
+
+  private def requestAllSessionsDeletion(username: String,
+                                         context: ActorContext[Request],
+                                         sessionStore: ActorRef[SessionStore.Request],
+                                         replyTo: ActorRef[Auth.Response]): Unit =
+    context.ask(sessionStore, ref => SessionStore.DeleteAllSessions(username, ref)) {
+      case Success(SessionStore.AllSessionsDeleted) =>
+        AllSessionsDeleted(replyTo)
+      case Success(SessionStore.AllSessionsDeletionFailed(message)) =>
+        AllSessionsNotDeleted(message, replyTo)
     }
 }

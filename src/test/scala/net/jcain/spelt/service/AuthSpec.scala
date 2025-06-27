@@ -26,6 +26,11 @@ class AuthSpec extends ScalaTestWithActorTestKit with AnyWordSpecLike with Match
     val existingSession: Session = Session(ULID.newULIDString, "foo.bar.baz")
   }
 
+//  trait ExistingSessions extends ExistingSession {
+//    val existingSession2: Session = Session(ULID.newULIDString, "foo.bar.baz")
+//    val existingSession3: Session = Session(ULID.newULIDString, "foo.bar.baz")
+//  }
+
   trait LoginRequestParams extends ExistingUser {
     val requestDeviceId: String = ULID.newULIDString
     val requestDeviceName = "iDevice 123 Max Pro Extreme"
@@ -129,10 +134,61 @@ class AuthSpec extends ScalaTestWithActorTestKit with AnyWordSpecLike with Match
             replyTo ! SessionStore.SessionDeletionFailed("Session not found")
         }
 
-        // Expect Auth to respond with LogoutSucceeded.
+        // Expect Auth to respond with LogoutFailed.
         inside(probe.expectMessageType[Auth.Response]) {
           case Auth.LogoutFailed(message) =>
-            message should include ("Session not found")
+            message shouldEqual "Session not found"
+        }
+      }
+    }
+  }
+
+  "LogOutAll" when {
+    "User exists and Sessions exist" should {
+      "respond with LogoutAllSucceeded" in new ExistingUser {
+        private val userStoreProbe = testKit.createTestProbe[UserStore.Request]()
+        private val sessionStoreProbe = testKit.createTestProbe[SessionStore.Request]()
+        private val auth = testKit.spawn(Auth(userStoreProbe.ref, sessionStoreProbe.ref))
+
+        // Send LogOutAll message to Auth.
+        private val probe = testKit.createTestProbe[Auth.Response]()
+        auth ! Auth.LogOutAll(existingUser.name, probe.ref)
+
+        // Expect SessionStore to receive DeleteAllSessions; respond with AllSessionsDeleted.
+        inside(sessionStoreProbe.expectMessageType[SessionStore.Request]) {
+          case SessionStore.DeleteAllSessions(username, replyTo) =>
+            username shouldEqual existingUser.name
+
+            replyTo ! SessionStore.AllSessionsDeleted
+        }
+
+        // Expect Auth to respond with LogoutAllSucceeded.
+        probe.expectMessage(Auth.LogoutAllSucceeded)
+      }
+    }
+
+    "User does not exist" should {
+      "respond with LogoutAllFailed" in {
+        val userStoreProbe = testKit.createTestProbe[UserStore.Request]()
+        val sessionStoreProbe = testKit.createTestProbe[SessionStore.Request]()
+        val auth = testKit.spawn(Auth(userStoreProbe.ref, sessionStoreProbe.ref))
+
+        // Send LogOutAll message to Auth.
+        val probe = testKit.createTestProbe[Auth.Response]()
+        auth ! Auth.LogOutAll("foobar", probe.ref)
+
+        // Expect SessionStore to receive DeleteAllSessions; respond with AllSessionsDeletionFailed.
+        inside(sessionStoreProbe.expectMessageType[SessionStore.Request]) {
+          case SessionStore.DeleteAllSessions(username, replyTo) =>
+            username shouldEqual "foobar"
+
+            replyTo ! SessionStore.AllSessionsDeletionFailed("User not found")
+        }
+
+        // Expect Auth to respond with LogoutAllFailed.
+        inside(probe.expectMessageType[Auth.Response]) {
+          case Auth.LogoutAllFailed(message) =>
+            message shouldEqual "User not found"
         }
       }
     }

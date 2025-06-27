@@ -50,6 +50,7 @@ object Peer {
 }
 
 User --> Session : AUTHENTICATED_AS
+User --> Device : OWNS
 User --> Room : CREATED
 User --> Room : MEMBER_OF
 ProfileItem --> User : BELONGS_TO
