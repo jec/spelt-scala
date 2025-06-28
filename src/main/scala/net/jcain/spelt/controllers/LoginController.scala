@@ -1,9 +1,7 @@
 package net.jcain.spelt.controllers
 
-import net.jcain.spelt.controllers.LoginController.supportedLoginFlows
 import net.jcain.spelt.models.Config
 import net.jcain.spelt.service.{Auth, AuthenticatedAction}
-import net.jcain.spelt.store.SessionStore
 import org.apache.pekko.actor.typed.scaladsl.AskPattern.Askable
 import org.apache.pekko.actor.typed.{ActorRef, Scheduler}
 import org.apache.pekko.util.Timeout
@@ -25,18 +23,18 @@ object LoginController:
   )
 
 /**
- * Implements endpoints related to user login
+ * Implements API endpoints related to user authentication
  *
  * This is not a Singleton so that it receives the current Auth actor reference each time.
  *
  * @param authRef              reference to Auth actor [injected]
+ * @param authenticatedAction  provides authenticated User, Session and Device [injected]
  * @param controllerComponents required by `BaseController` [injected]
  * @param xc                   required for interacting with the Actor System
  * @param sch                  required for interacting with the Actor System
  */
 class LoginController @Inject() (
   authRef: ActorRef[Auth.Request],
-  sessionStoreRef: ActorRef[SessionStore.Request],
   authenticatedAction: AuthenticatedAction,
   val controllerComponents: ControllerComponents
 )(
@@ -55,7 +53,7 @@ class LoginController @Inject() (
    * See https://spec.matrix.org/v1.14/client-server-api/#get_matrixclientv3login
    */
   def loginTypes(): Action[AnyContent] = Action {
-    Ok(supportedLoginFlows)
+    Ok(LoginController.supportedLoginFlows)
   }
 
   /**
