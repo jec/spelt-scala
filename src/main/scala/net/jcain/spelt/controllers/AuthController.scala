@@ -12,7 +12,7 @@ import javax.inject.Inject
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.*
 
-object LoginController:
+object AuthController:
   /**
    * The Matrix login flows supported by the app
    */
@@ -33,7 +33,7 @@ object LoginController:
  * @param xc                   required for interacting with the Actor System
  * @param sch                  required for interacting with the Actor System
  */
-class LoginController @Inject() (
+class AuthController @Inject()(
   authRef: ActorRef[Auth.Request],
   authenticatedAction: AuthenticatedAction,
   val controllerComponents: ControllerComponents
@@ -53,7 +53,7 @@ class LoginController @Inject() (
    * See https://spec.matrix.org/v1.14/client-server-api/#get_matrixclientv3login
    */
   def loginTypes(): Action[AnyContent] = Action {
-    Ok(LoginController.supportedLoginFlows)
+    Ok(AuthController.supportedLoginFlows)
   }
 
   /**

@@ -17,7 +17,7 @@ import play.api.test.Helpers.*
 import play.api.test.CSRFTokenHelper._
 import wvlet.airframe.ulid.ULID
 
-class LoginControllerSpec extends PlaySpec with GuiceOneAppPerTest with Injecting with DatabaseRollback {
+class AuthControllerSpec extends PlaySpec with GuiceOneAppPerTest with Injecting with DatabaseRollback {
   trait ExistingUser extends ScalaTestWithActorTestKit {
     val existingPassword = "open-sesame"
     val existingUser: User = User("phredsmerd", Auth.hashPassword(existingPassword), "phredsmerd@example.com")
