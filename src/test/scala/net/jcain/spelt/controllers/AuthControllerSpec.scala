@@ -13,8 +13,8 @@ import play.api.libs.json.*
 import play.api.libs.json.Reads.*
 import play.api.mvc.Headers
 import play.api.test.*
+import play.api.test.CSRFTokenHelper.*
 import play.api.test.Helpers.*
-import play.api.test.CSRFTokenHelper._
 import wvlet.airframe.ulid.ULID
 
 class AuthControllerSpec extends PlaySpec with GuiceOneAppPerTest with Injecting with DatabaseRollback {

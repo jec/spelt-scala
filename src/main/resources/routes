@@ -7,3 +7,6 @@ GET     /_matrix/client/v3/login       net.jcain.spelt.controllers.AuthControlle
 POST    /_matrix/client/v3/login       net.jcain.spelt.controllers.AuthController.logIn()
 POST    /_matrix/client/v3/logout      net.jcain.spelt.controllers.AuthController.logOut()
 POST    /_matrix/client/v3/logout/all  net.jcain.spelt.controllers.AuthController.logOutAll()
+
+# Rooms
+POST    /_matrix/client/v3/createRoom  net.jcain.spelt.controllers.RoomsController.createRoom()
