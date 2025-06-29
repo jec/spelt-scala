@@ -16,6 +16,7 @@ object Config {
   private val base: config.Config = ConfigFactory.load()
   val database: config.Config = base.getConfig("database")
   val versions: Seq[String] = Seq("1.14")
+  val defaultNewRoomVersion: String = "11"
   val jwtIssuer: String = base.getString("jwt.issuer")
 
   val homeserver: String = Config.base.getString("server.homeserver_name")

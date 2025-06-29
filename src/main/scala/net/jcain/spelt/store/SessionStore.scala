@@ -137,9 +137,9 @@ object SessionStore {
    * @param deviceNameOption device name
    * @param replyTo requesting Actor
    */
-  private def createSession(username: String, 
-                            remoteIpAddress: String, 
-                            deviceNameOption: Option[String], 
+  private def createSession(username: String,
+                            remoteIpAddress: String,
+                            deviceNameOption: Option[String],
                             replyTo: ActorRef[Response]): Unit =
     val ulid = ULID.newULIDString
     val deviceId = ULID.newULIDString
@@ -217,11 +217,10 @@ object SessionStore {
       .onComplete:
         case Failure(error) =>
           replyTo ! SessionDeletionFailed(error.getMessage)
-        case Success(result) =>
-          if result.counters.nodesDeleted == 1 then
-            replyTo ! SessionDeleted
-          else
-            replyTo ! SessionDeletionFailed(s"Session not found with ID $ulid")
+        case Success(result) if result.counters.nodesDeleted == 1 =>
+          replyTo ! SessionDeleted
+        case Success(_) =>
+          replyTo ! SessionDeletionFailed(s"Session not found with ID $ulid")
 
   private def deleteAllSessions(username: String, replyTo: ActorRef[Response]): Unit =
     c"""MATCH (u:User)
@@ -235,11 +234,10 @@ object SessionStore {
       .onComplete:
         case Failure(error) =>
           replyTo ! AllSessionsDeletionFailed(error.getMessage)
-        case Success(result) =>
-          if result.counters.nodesDeleted > 0 then
-            replyTo ! AllSessionsDeleted
-          else
-            replyTo ! AllSessionsDeletionFailed(s"No Sessions or Devices found with user $username")
+        case Success(result) if result.counters.nodesDeleted > 0 =>
+          replyTo ! AllSessionsDeleted
+        case Success(_) =>
+          replyTo ! AllSessionsDeletionFailed(s"No Sessions or Devices found with user $username")
 
   /**
    * Verifies a token by decoding it and then looking up the Session it references
