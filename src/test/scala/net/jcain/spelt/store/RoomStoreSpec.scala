@@ -11,19 +11,11 @@ import wvlet.airframe.ulid.ULID
 
 class RoomStoreSpec extends ScalaTestWithActorTestKit with AnyWordSpecLike with Matchers with DatabaseRollback {
   trait RoomRequestWithNones {
-    val roomRequest: CreateRoomRequest = CreateRoomRequest(None,
-      Seq(),
-      Seq(),
-      Seq(),
-      None,
-      Some("My New Room"),
-      Seq(),
-      None,
-      Some("newalias"),
-      None,
-      Some("This is a test."),
-      None,
-      None)
+    val roomRequest: CreateRoomRequest = CreateRoomRequest(
+      name = Some("My New Room"),
+      room_alias_name = Some("newalias"),
+      topic = Some("This is a test.")
+    )
   }
 
   "CreateRoom" when {

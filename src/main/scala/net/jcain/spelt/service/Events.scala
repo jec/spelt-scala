@@ -1,7 +1,8 @@
 package net.jcain.spelt.service
 
 import com.google.inject.Provides
-import org.apache.pekko.actor.typed.Behavior
+import net.jcain.spelt.models.requests.CreateRoomRequest
+import org.apache.pekko.actor.typed.{ActorRef, Behavior}
 import org.apache.pekko.actor.typed.scaladsl.Behaviors
 import play.api.libs.concurrent.ActorModule
 
@@ -9,14 +10,15 @@ object Events extends ActorModule:
   type Message = Request
 
   sealed trait Request
-  final case class CreateEventsForNewRoom(name: String) extends Request
+  final case class CreateEventsForNewRoom(roomId: String, request: CreateRoomRequest, replyTo: ActorRef[Response]) extends Request
 
   sealed trait Response
+  final case class CreateEventsForNewRoomResponse(unitOrError: Either[String, Unit]) extends Response
 
   @Provides
   def apply(): Behavior[Request] = Behaviors.setup { context =>
     Behaviors.receiveMessage {
-      case CreateEventsForNewRoom(name) =>
+      case CreateEventsForNewRoom(roomId, request, replyTo) =>
         Behaviors.same
     }
   }

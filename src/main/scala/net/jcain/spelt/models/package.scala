@@ -7,8 +7,8 @@ package object models:
                    depth: Int)
 
   case class Room(identifier: String,
-                  name: Option[String],
-                  topic: Option[String],
-                  avatar: Option[String],
-                  alias: Option[String],
+                  name: Option[String] = None,
+                  topic: Option[String] = None,
+                  avatar: Option[String] = None,
+                  alias: Option[String] = None,
                   roomVersion: String)
