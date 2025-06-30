@@ -17,13 +17,22 @@ object RoomStore:
   final case class CreateRoom(roomRequest: CreateRoomRequest, replyTo: ActorRef[Response]) extends Request
 
   sealed trait Response
-  final case class CreateRoomResponse(identifierOrError: Either[String, Room]) extends Response
+  final case class CreateRoomResponse(roomOrError: Either[String, Room]) extends Response
 
   def apply(): Behavior[Request] = Behaviors.receiveMessage:
     case CreateRoom(roomRequest, replyTo) =>
       createRoom(roomRequest, replyTo)
       Behaviors.same
 
+  /**
+   * Creates a Room node and, if successful, responds with the new `Room`
+   *
+   * Once a Room node is created, several Event nodes are created which may modify the Room, so the
+   * Room object received from this method is likely to be obsolete within milliseconds.
+   *
+   * @param roomRequest parsed body from the API request
+   * @param replyTo Actor that receives response
+   */
   private def createRoom(roomRequest: CreateRoomRequest, replyTo: ActorRef[Response]): Unit = {
     val identifier = ULID.newULIDString
     val roomVersion = roomRequest.room_version.getOrElse(Config.defaultNewRoomVersion)

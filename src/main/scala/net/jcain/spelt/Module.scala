@@ -10,6 +10,8 @@ import play.api.libs.concurrent.PekkoGuiceSupport
  */
 class Module extends AbstractModule with PekkoGuiceSupport {
   override def configure(): Unit =
+    // TODO: This should start a single supervisor actor, which is responsible for starting and
+    //   restarting all of the others.
     bindTypedActor(EventStore(), "EventStoreActor")
     bindTypedActor(RoomStore(), "RoomStoreActor")
     bindTypedActor(SessionStore(), "SessionStoreActor")

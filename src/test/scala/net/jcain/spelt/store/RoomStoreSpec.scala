@@ -10,27 +10,29 @@ import org.scalatest.wordspec.AnyWordSpecLike
 import wvlet.airframe.ulid.ULID
 
 class RoomStoreSpec extends ScalaTestWithActorTestKit with AnyWordSpecLike with Matchers with DatabaseRollback {
+  trait RoomRequestWithNones {
+    val roomRequest: CreateRoomRequest = CreateRoomRequest(None,
+      Seq(),
+      Seq(),
+      Seq(),
+      None,
+      Some("My New Room"),
+      Seq(),
+      None,
+      Some("newalias"),
+      None,
+      Some("This is a test."),
+      None,
+      None)
+  }
+
   "CreateRoom" when {
     "request with mostly Nones" should {
-      "respond with CreateRoomResponse(Right(room))" in {
-        val repo = testKit.spawn(RoomStore())
-        val probe = testKit.createTestProbe[RoomStore.Response]()
+      "respond with CreateRoomResponse(Right(room))" in new RoomRequestWithNones {
+        private val store = testKit.spawn(RoomStore())
+        private val probe = testKit.createTestProbe[RoomStore.Response]()
 
-        val roomRequest = CreateRoomRequest(None,
-          Seq(),
-          Seq(),
-          Seq(),
-          None,
-          Some("My New Room"),
-          Seq(),
-          None,
-          Some("newalias"),
-          None,
-          Some("This is a test."),
-          None,
-          None)
-
-        repo ! RoomStore.CreateRoom(roomRequest, probe.ref)
+        store ! RoomStore.CreateRoom(roomRequest, probe.ref)
 
         inside(probe.expectMessageType[RoomStore.Response]) {
           case RoomStore.CreateRoomResponse(Right(room)) =>
