@@ -1,14 +1,16 @@
 package net.jcain.spelt.store
 
+import neotypes.AsyncDriver
 import neotypes.generic.implicits.*
 import neotypes.mappers.ResultMapper
 import neotypes.syntax.all.*
-import net.jcain.spelt.models.{Database, User}
+import net.jcain.spelt.models.User
 import net.jcain.spelt.service.Auth
-import org.apache.pekko.actor.typed.scaladsl.Behaviors
+import org.apache.pekko.actor.typed.scaladsl.{AbstractBehavior, ActorContext, Behaviors}
 import org.apache.pekko.actor.typed.{ActorRef, Behavior}
 
-import scala.concurrent.ExecutionContext.Implicits.global
+import javax.inject.Inject
+import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}
 
 /**
@@ -38,23 +40,29 @@ object UserStore:
   final case class GetUserResponse(user: Either[Throwable, Option[User]]) extends Response
   final case class UserInquiryResponse(exists: Either[Throwable, Boolean]) extends Response
 
+class UserStore @Inject()(context: ActorContext[UserStore.Request],
+                           driver: AsyncDriver[Future])(implicit xc: ExecutionContext) extends AbstractBehavior[UserStore.Request](context):
+  import UserStore.*
+
   /**
    * Dispatches received messages
    *
    * @return the subsequent Behaviors
    */
-  def apply(): Behavior[Request] = Behaviors.receiveMessage:
-    case CreateUser(name, password, email, replyTo) =>
-      checkBeforeCreate(name, password, email, replyTo)
-      Behaviors.same
+  override def onMessage(message: Request): Behavior[Request] =
+    message match {
+      case CreateUser(name, password, email, replyTo) =>
+        checkBeforeCreate(name, password, email, replyTo)
+        Behaviors.same
 
-    case GetUser(name, replyTo) =>
-      read(name, replyTo)
-      Behaviors.same
+      case GetUser(name, replyTo) =>
+        read(name, replyTo)
+        Behaviors.same
 
-    case UserInquiry(name, replyTo) =>
-      check(name, replyTo)
-      Behaviors.same
+      case UserInquiry(name, replyTo) =>
+        check(name, replyTo)
+        Behaviors.same
+    }
 
   /**
    * Creates a user
@@ -69,7 +77,7 @@ object UserStore:
 
     c"CREATE (u:User { name: $name, encryptedPassword: $encryptedPassword, email: $email }) RETURN u.name"
       .query(ResultMapper.string)
-      .single(Database.driver)
+      .single(driver)
       .onComplete:
         case Success(name) =>
           replyTo ! CreateUserResponse(Right(name))
@@ -85,7 +93,7 @@ object UserStore:
   private def read(name: String, replyTo: ActorRef[Response]): Unit =
     c"MATCH (u:User) WHERE u.name = $name RETURN u"
       .query(ResultMapper.productDerive[User])
-      .list(Database.driver)
+      .list(driver)
       .onComplete:
         case Success(user :: _) =>
           replyTo ! GetUserResponse(Right(Some(user)))
@@ -103,7 +111,7 @@ object UserStore:
   private def check(name: String, replyTo: ActorRef[Response]): Unit =
     c"MATCH (u:User) WHERE u.name = $name RETURN count(u)"
       .query(ResultMapper.int)
-      .single(Database.driver)
+      .single(driver)
       .onComplete:
         case Success(count) =>
           replyTo ! UserInquiryResponse(Right(count > 0))
@@ -121,7 +129,7 @@ object UserStore:
   private def checkBeforeCreate(name: String, password: String, email: String, replyTo: ActorRef[Response]): Unit =
     c"MATCH (u:User) WHERE u.name = $name RETURN count(u)"
       .query(ResultMapper.int)
-      .single(Database.driver)
+      .single(driver)
       .onComplete:
         case Success(0) =>
           create(name, password, email, replyTo)

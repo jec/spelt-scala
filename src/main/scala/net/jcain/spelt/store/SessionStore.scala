@@ -1,15 +1,17 @@
 package net.jcain.spelt.store
 
+import neotypes.AsyncDriver
 import neotypes.generic.implicits.*
 import neotypes.mappers.ResultMapper
 import neotypes.syntax.all.*
-import net.jcain.spelt.models.{Database, Device, Session, User}
+import net.jcain.spelt.models.{Device, Session, User}
 import net.jcain.spelt.service.Token
-import org.apache.pekko.actor.typed.scaladsl.Behaviors
+import org.apache.pekko.actor.typed.scaladsl.{AbstractBehavior, ActorContext, Behaviors}
 import org.apache.pekko.actor.typed.{ActorRef, Behavior}
 import wvlet.airframe.ulid.ULID
 
-import scala.concurrent.ExecutionContext.Implicits.global
+import javax.inject.Inject
+import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}
 
 /**
@@ -43,7 +45,7 @@ import scala.util.{Failure, Success}
  *     that device.
  *   - A login request with no device ID generates a new device ID.
  */
-object SessionStore {
+object SessionStore:
   sealed trait Request
   final case class GetOrCreateSession(username: String,
                                       remoteIpAddress: String,
@@ -66,37 +68,42 @@ object SessionStore {
   final case class TokenFailed(error: Throwable) extends Response
   final case class TokenOtherError(error: Throwable) extends Response
 
+class SessionStore @Inject() (context: ActorContext[SessionStore.Request],
+                              driver: AsyncDriver[Future])(implicit xc: ExecutionContext) extends AbstractBehavior[SessionStore.Request](context):
+  import SessionStore.*
+
   /**
    * Dispatches received messages
    *
    * @return subsequent Behaviors
    */
-  def apply(): Behavior[Request] = Behaviors.receiveMessage {
-    case GetOrCreateSession(name, remoteIpAddress, deviceIdOption, deviceNameOption, replyTo) =>
-      deviceIdOption match {
-        // If deviceId isn't specified, create a new Session.
-        case None =>
-          createSession(name, remoteIpAddress, deviceNameOption, replyTo)
+  override def onMessage(message: Request): Behavior[Request] = 
+    message match {
+      case GetOrCreateSession(name, remoteIpAddress, deviceIdOption, deviceNameOption, replyTo) =>
+        deviceIdOption match {
+          // If deviceId isn't specified, create a new Session.
+          case None =>
+            createSession(name, remoteIpAddress, deviceNameOption, replyTo)
 
-        // Else look up Session.
-        case Some(deviceId) =>
-          readByDevice(name, remoteIpAddress, deviceId, deviceNameOption, replyTo)
-      }
+          // Else look up Session.
+          case Some(deviceId) =>
+            readByDevice(name, remoteIpAddress, deviceId, deviceNameOption, replyTo)
+        }
 
-      Behaviors.same
+        Behaviors.same
 
-    case DeleteSession(ulid, replyTo) =>
-      deleteSession(ulid, replyTo)
-      Behaviors.same
+      case DeleteSession(ulid, replyTo) =>
+        deleteSession(ulid, replyTo)
+        Behaviors.same
 
-    case DeleteAllSessions(username, replyTo) =>
-      deleteAllSessions(username, replyTo)
-      Behaviors.same
+      case DeleteAllSessions(username, replyTo) =>
+        deleteAllSessions(username, replyTo)
+        Behaviors.same
 
-    case VerifyToken(token, replyTo) =>
-      verifyToken(token, replyTo)
-      Behaviors.same
-  }
+      case VerifyToken(token, replyTo) =>
+        verifyToken(token, replyTo)
+        Behaviors.same
+    }
 
   /**
    * Looks up Session by `username` and `deviceId`; if found then updates that Session with a new
@@ -119,7 +126,7 @@ object SessionStore {
       RETURN s.ulid
     """
       .query(ResultMapper.string)
-      .list(Database.driver)
+      .list(driver)
       .onComplete:
         case Success(ulid :: _) =>
           updateSession(ulid, replyTo)
@@ -167,7 +174,7 @@ object SessionStore {
     """
       .query(ResultMapper.int)
       .withResultSummary
-      .single(Database.driver)
+      .single(driver)
       .onComplete:
         case Success((userCount, _)) if userCount == 0 =>
           replyTo ! UserNotFound
@@ -201,7 +208,7 @@ object SessionStore {
       RETURN d.identifier
     """
       .query(ResultMapper.string)
-      .list(Database.driver)
+      .list(driver)
       .onComplete:
         case Success(deviceId :: _) =>
           replyTo ! SessionCreated(ulid, token, deviceId)
@@ -213,7 +220,7 @@ object SessionStore {
   private def deleteSession(ulid: String, replyTo: ActorRef[Response]): Unit =
     c"MATCH (s:Session) WHERE s.ulid = $ulid DETACH DELETE s"
       .execute
-      .resultSummary(Database.driver)
+      .resultSummary(driver)
       .onComplete:
         case Failure(error) =>
           replyTo ! SessionDeletionFailed(error.getMessage)
@@ -230,7 +237,7 @@ object SessionStore {
         WHERE u.name = $username
         DETACH DELETE s, d"""
       .execute
-      .resultSummary(Database.driver)
+      .resultSummary(driver)
       .onComplete:
         case Failure(error) =>
           replyTo ! AllSessionsDeletionFailed(error.getMessage)
@@ -264,7 +271,7 @@ object SessionStore {
             WHERE s.ulid = $ulid
             RETURN u, s, d"""
           .query(ResultMapper.tuple[User, Session, Device])
-          .list(Database.driver)
+          .list(driver)
           .onComplete:
             case Success((user, session, device) :: _) =>
               replyTo ! TokenPassed(user, session, device)
@@ -273,4 +280,3 @@ object SessionStore {
             case Failure(error) =>
               replyTo ! TokenOtherError(error)
     }
-}

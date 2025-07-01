@@ -1,10 +1,12 @@
 package net.jcain.spelt.controllers
 
+import neotypes.AsyncDriver
 import net.jcain.spelt.models.{Config, User}
 import net.jcain.spelt.service.Auth
 import net.jcain.spelt.store.{SessionStore, UserStore}
 import net.jcain.spelt.support.DatabaseRollback
 import org.apache.pekko.actor.testkit.typed.scaladsl.ScalaTestWithActorTestKit
+import org.apache.pekko.actor.typed.scaladsl.Behaviors
 import org.scalatest.Inside.inside
 import org.scalatestplus.play.*
 import org.scalatestplus.play.guice.*
@@ -17,13 +19,16 @@ import play.api.test.CSRFTokenHelper.*
 import play.api.test.Helpers.*
 import wvlet.airframe.ulid.ULID
 
-class AuthControllerSpec extends PlaySpec with GuiceOneAppPerTest with Injecting with DatabaseRollback {
+import javax.inject.Inject
+import scala.concurrent.{ExecutionContext, Future}
+
+class AuthControllerSpec @Inject() (implicit driver: AsyncDriver[Future], xc: ExecutionContext) extends PlaySpec with GuiceOneAppPerTest with Injecting with DatabaseRollback(driver) {
   trait ExistingUser extends ScalaTestWithActorTestKit {
     val existingPassword = "open-sesame"
     val existingUser: User = User("phredsmerd", Auth.hashPassword(existingPassword), "phredsmerd@example.com")
 
     // Create User in database.
-    private val userStore = testKit.spawn(UserStore())
+    private val userStore = testKit.spawn(Behaviors.setup(context => UserStore(context, driver)))
     private val userStoreProbe = testKit.createTestProbe[UserStore.Response]()
 
     userStore ! UserStore.CreateUser(
@@ -37,7 +42,7 @@ class AuthControllerSpec extends PlaySpec with GuiceOneAppPerTest with Injecting
   }
 
   trait ExistingSession extends ExistingUser {
-    private val sessionStoreRepo = testKit.spawn(SessionStore())
+    private val sessionStoreRepo = testKit.spawn(Behaviors.setup(context => SessionStore(context, driver)))
     private val sessionStoreProbe = testKit.createTestProbe[SessionStore.Response]()
 
     sessionStoreRepo !

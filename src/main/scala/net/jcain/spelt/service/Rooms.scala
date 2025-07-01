@@ -13,6 +13,7 @@ import play.api.libs.concurrent.ActorModule
 import play.api.libs.json.*
 import play.api.libs.json.Reads.*
 
+import java.util.concurrent.TimeoutException
 import scala.concurrent.duration.DurationInt
 import scala.util.{Failure, Success}
 
@@ -93,6 +94,8 @@ object Rooms extends ActorModule with Logging:
             RoomCreated(room, request, replyTo)
           case Success(RoomStore.CreateRoomResponse(Left(errorMessage))) =>
             RoomFailed(errorMessage, replyTo)
+          case Failure(error: TimeoutException) =>
+            RoomFailed(error.getMessage, replyTo)
           case Failure(error) =>
             RoomFailed(error.getMessage, replyTo)
         }

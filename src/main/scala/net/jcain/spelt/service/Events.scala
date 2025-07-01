@@ -19,11 +19,12 @@ object Events extends ActorModule:
   def apply(): Behavior[Request] = Behaviors.setup { context =>
     Behaviors.receiveMessage {
       case CreateEventsForNewRoom(roomId, request, replyTo) =>
+        createEventsForNewRoom(roomId, request, replyTo)
         Behaviors.same
     }
   }
-  
-  private def createEventsForNewRoom(name: String): Unit =
+
+  private def createEventsForNewRoom(roomId: String, request: CreateRoomRequest, replyTo: ActorRef[Response]): Unit =
     // Event m.room.create
     // Event m.room.member
     // Event m.room.power_levels

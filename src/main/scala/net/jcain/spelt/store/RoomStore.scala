@@ -1,15 +1,17 @@
 package net.jcain.spelt.store
 
+import neotypes.AsyncDriver
 import neotypes.mappers.ResultMapper
 import neotypes.syntax.all.*
-import net.jcain.spelt.models.{Config, Database, Room}
+import net.jcain.spelt.models.{Config, Room}
 import net.jcain.spelt.models.requests.CreateRoomRequest
 import neotypes.generic.implicits.*
 import org.apache.pekko.actor.typed.{ActorRef, Behavior}
-import org.apache.pekko.actor.typed.scaladsl.Behaviors
+import org.apache.pekko.actor.typed.scaladsl.{AbstractBehavior, ActorContext, Behaviors}
 import wvlet.airframe.ulid.ULID
 
-import scala.concurrent.ExecutionContext.Implicits.global
+import javax.inject.Inject
+import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}
 
 object RoomStore:
@@ -18,11 +20,17 @@ object RoomStore:
 
   sealed trait Response
   final case class CreateRoomResponse(roomOrError: Either[String, Room]) extends Response
+  
+class RoomStore @Inject()(context: ActorContext[RoomStore.Request],
+                          driver: AsyncDriver[Future])(implicit xc: ExecutionContext) extends AbstractBehavior[RoomStore.Request](context):
+  import RoomStore.*
 
-  def apply(): Behavior[Request] = Behaviors.receiveMessage:
-    case CreateRoom(roomRequest, replyTo) =>
-      createRoom(roomRequest, replyTo)
-      Behaviors.same
+  def onMessage(message: Request): Behavior[Request] =
+    message match {
+      case CreateRoom(roomRequest, replyTo) =>
+        createRoom(roomRequest, replyTo)
+        Behaviors.same
+    }
 
   /**
    * Creates a Room node and, if successful, responds with the new `Room`
@@ -48,7 +56,7 @@ object RoomStore:
         RETURN r"""
       .query(ResultMapper.productDerive[Room])
       .withResultSummary
-      .single(Database.driver)
+      .single(driver)
       .onComplete:
         case Failure(error) =>
           replyTo ! CreateRoomResponse(Left(error.getMessage))
