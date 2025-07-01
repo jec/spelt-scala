@@ -1,8 +1,7 @@
 package net.jcain.spelt.service
 
-import neotypes.AsyncDriver
 import net.jcain.spelt.models.{Config, Room}
-import net.jcain.spelt.support.{DatabaseRollback, MockEvents, MockRoomStore}
+import net.jcain.spelt.support.{MockEvents, MockRoomStore}
 import org.apache.pekko.actor.testkit.typed.scaladsl.ScalaTestWithActorTestKit
 import org.scalatest.Inside.inside
 import org.scalatest.matchers.should.Matchers
@@ -10,11 +9,8 @@ import org.scalatest.wordspec.AnyWordSpecLike
 import play.api.libs.json.{JsObject, Json}
 import wvlet.airframe.ulid.ULID
 
-import javax.inject.Inject
-import scala.concurrent.Future
 
-
-class RoomsSpec @Inject() (implicit driver: AsyncDriver[Future]) extends ScalaTestWithActorTestKit with AnyWordSpecLike with Matchers with DatabaseRollback(driver) {
+class RoomsSpec extends ScalaTestWithActorTestKit with AnyWordSpecLike with Matchers {
   trait MinimalRoomsRequest {
     val name = "My New Room"
     val alias = "newalias"

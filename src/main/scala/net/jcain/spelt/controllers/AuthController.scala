@@ -1,7 +1,7 @@
 package net.jcain.spelt.controllers
 
 import net.jcain.spelt.models.Config
-import net.jcain.spelt.service.{Auth, AuthenticatedAction}
+import net.jcain.spelt.service.{Auth, AuthenticatedAction, Main}
 import org.apache.pekko.actor.typed.scaladsl.AskPattern.Askable
 import org.apache.pekko.actor.typed.{ActorRef, Scheduler}
 import org.apache.pekko.util.Timeout
@@ -33,14 +33,12 @@ object AuthController:
  * @param xc                   required for interacting with the Actor System
  * @param sch                  required for interacting with the Actor System
  */
-class AuthController @Inject()(
-  authRef: ActorRef[Auth.Request],
-  authenticatedAction: AuthenticatedAction,
-  val controllerComponents: ControllerComponents
-)(
-  implicit xc: ExecutionContext,
-  sch: Scheduler
-) extends BaseController {
+class AuthController @Inject()(authRef: ActorRef[Auth.Request],
+                               authenticatedAction: AuthenticatedAction,
+                               val controllerComponents: ControllerComponents
+                              )(implicit xc: ExecutionContext,
+                                sch: Scheduler
+                              ) extends BaseController {
   implicit val timeout: Timeout = 5.seconds
 
   /**

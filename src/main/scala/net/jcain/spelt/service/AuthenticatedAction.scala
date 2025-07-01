@@ -3,7 +3,7 @@ package net.jcain.spelt.service
 import net.jcain.spelt.models.{Device, Session, User}
 import net.jcain.spelt.store.SessionStore
 import org.apache.pekko.actor.typed.scaladsl.AskPattern.Askable
-import org.apache.pekko.actor.typed.{ActorRef, Scheduler}
+import org.apache.pekko.actor.typed.Scheduler
 import org.apache.pekko.util.Timeout
 import play.api.Logging
 import play.api.libs.json.JsValue
@@ -27,8 +27,7 @@ object AuthenticatedAction {
 }
 
 class AuthenticatedAction @Inject()(
-  val defaultParsers: DefaultPlayBodyParsers,
-  sessionStore: ActorRef[SessionStore.Request]
+  val defaultParsers: DefaultPlayBodyParsers
 )(
   implicit val executionContext: ExecutionContext,
   sch: Scheduler
@@ -58,7 +57,7 @@ class AuthenticatedAction @Inject()(
         logger.debug { s"Authorization: $authValue" }
 
         if authValue.startsWith("Bearer ") then
-          sessionStore.ask(ref => SessionStore.VerifyToken(authValue.substring(7), ref)).map {
+          Main.sessionStoreRef.get.ask(ref => SessionStore.VerifyToken(authValue.substring(7), ref)).map {
             case SessionStore.TokenPassed(user, session, device) =>
               Some(AuthenticatedRequest(user, session, device, request))
 

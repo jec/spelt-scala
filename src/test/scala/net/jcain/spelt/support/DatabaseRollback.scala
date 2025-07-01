@@ -1,14 +1,13 @@
 package net.jcain.spelt.support
 
-import neotypes.AsyncDriver
-import neotypes.syntax.all.*
-import net.jcain.spelt.models.Database
+import neotypes.syntax.all.c
+import net.jcain.spelt.Module
 import org.scalatest.{BeforeAndAfterEach, Suite}
 
-import scala.concurrent.*
-import scala.concurrent.duration.*
+import scala.concurrent.Await
+import scala.concurrent.duration.DurationInt
 
-trait DatabaseRollback(driver: AsyncDriver[Future]) extends BeforeAndAfterEach { this: Suite =>
+trait DatabaseRollback extends BeforeAndAfterEach { this: Suite =>
   override def beforeEach(): Unit = {
     wipeData()
     super.beforeEach()
@@ -21,7 +20,7 @@ trait DatabaseRollback(driver: AsyncDriver[Future]) extends BeforeAndAfterEach {
 
   private def wipeData(): Unit = {
     Await.result(
-      c"MATCH (x) DETACH DELETE x".execute.void(driver),
+      c"MATCH (x) DETACH DELETE x".execute.void(Module.driver),
       5.minutes
     )
   }

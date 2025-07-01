@@ -3,51 +3,81 @@ package net.jcain.spelt
 import com.google.inject.{AbstractModule, Provides}
 import neotypes.{AsyncDriver, GraphDatabase}
 import net.jcain.spelt.models.Config
-import net.jcain.spelt.service.{Auth, Events, Main, Rooms}
-import net.jcain.spelt.store.{EventStore, RoomStore, SessionStore, UserStore}
-import org.apache.pekko.actor.typed.scaladsl.Behaviors
-import org.apache.pekko.actor.typed.{ActorSystem, Behavior}
+import net.jcain.spelt.service.{Auth, Main}
+import org.apache.pekko.actor.typed.scaladsl.{ActorContext, Behaviors}
+import org.apache.pekko.actor.typed.{ActorRef, ActorSystem}
 import org.neo4j.driver.AuthTokens
 import play.api.libs.concurrent.PekkoGuiceSupport
 
-import javax.inject.{Inject, Singleton}
+import javax.inject.Inject
 import scala.concurrent.{ExecutionContext, Future}
 
 object Module:
   private var _driver: Option[AsyncDriver[Future]] = None
   private var _system: Option[ActorSystem[Main.Request]] = None
 
+  def driver: AsyncDriver[Future] = _driver.get
+
 /**
  * Instantiates actors and binds them for injection
  */
 class Module extends AbstractModule with PekkoGuiceSupport:
-  override def configure(): Unit =
-    // TODO: This should start a single supervisor actor, which is responsible for starting and
-    //   restarting all of the others.
-    bind(classOf[EventStore.Request]).asEagerSingleton()
-    bind(classOf[RoomStore.Request]).asEagerSingleton()
-    bind(classOf[SessionStore.Request]).asEagerSingleton()
-    bind(classOf[UserStore.Request]).asEagerSingleton()
-    bindTypedActor(Auth, "AuthActor")
-    bindTypedActor(Events, "EventsActor")
-    bindTypedActor(Rooms, "RoomActor")
+  import Module.*
 
+  /**
+   * Called by Guice to bind all of our dependency-injected objects
+   */
+    override def configure(): Unit =
+      import scala.concurrent.ExecutionContext.Implicits.global
+      system
+  /*
+  bind(classOf[EventStore.Request]).asEagerSingleton()
+  bind(classOf[RoomStore.Request]).asEagerSingleton()
+  bind(classOf[SessionStore.Request]).asEagerSingleton()
+  bind(classOf[UserStore.Request]).asEagerSingleton()
+  bindTypedActor(Auth, "AuthActor")
+  bindTypedActor(Events, "EventsActor")
+  bindTypedActor(Rooms, "RoomActor")
+*/
+
+  /**
+   * Lazily instantiates a typed `ActorSystem` that uses `Main` as the root actor
+   *
+   * This is marked as a provider to Guice for the returned type.
+   *
+   * @return the typed actor system used for all of our own actors
+   */
+  @Inject
   @Provides
-  def system: ActorSystem[Main.Request] =
-    Module._system match {
+  def system(implicit xc: ExecutionContext): ActorSystem[Main.Request] = {
+    _system match {
       case Some(system) =>
         system
 
       case None =>
-        val system = ActorSystem[Main.Request](Behaviors.setup(context => Main(context)), "Main")
-        Module._system = Some(system)
+        val system = ActorSystem[Main.Request](
+          Behaviors.setup[Main.Request] { (context: ActorContext[Main.Request]) =>
+            context.spawn(Main(context), "Main")
+            Behaviors.same
+          },
+          "Main"
+        )
+        _system = Some(system)
         system
     }
+  }
 
+  /**
+   * Lazily instantiates a neotypes `AsyncDriver`
+   *
+   * This is marked as a provider to Guice for the returned type.
+   *
+   * @return the only Neo4j driver object used throughout the application
+   */
   @Inject
   @Provides
-  def driver(implicit xc: ExecutionContext): AsyncDriver[Future] =
-    Module._driver match {
+  implicit def driver(implicit xc: ExecutionContext): AsyncDriver[Future] =
+    _driver match {
       case Some(driver) =>
         driver
 
@@ -57,6 +87,9 @@ class Module extends AbstractModule with PekkoGuiceSupport:
         val password = Config.database.getString("password")
 
         val driver = GraphDatabase.asyncDriver[Future](url, AuthTokens.basic(username, password))
-        Module._driver = Some(driver)
+        _driver = Some(driver)
         driver
     }
+
+  @Provides
+  def authRef: ActorRef[Auth.Request] = Main.authRef.get

@@ -1,8 +1,7 @@
 package net.jcain.spelt.service
 
-import neotypes.AsyncDriver
 import net.jcain.spelt.models.{Session, User}
-import net.jcain.spelt.support.{DatabaseRollback, MockSessionStore, MockUserStore}
+import net.jcain.spelt.support.{MockSessionStore, MockUserStore}
 import org.apache.pekko.actor.testkit.typed.scaladsl.ScalaTestWithActorTestKit
 import org.scalatest.Inside.inside
 import org.scalatest.matchers.should.Matchers
@@ -10,16 +9,13 @@ import org.scalatest.wordspec.AnyWordSpecLike
 import play.api.libs.json.{JsObject, Json}
 import wvlet.airframe.ulid.ULID
 
-import javax.inject.Inject
-import scala.concurrent.{ExecutionContext, Future}
-
 /**
  * Tests the message interface of the `Auth` actor
  *
  * These tests use mocks for the actors with which `Auth` communicates and therefore do not touch
  * the database.
  */
-class AuthSpec @Inject() (implicit driver: AsyncDriver[Future], xc: ExecutionContext) extends ScalaTestWithActorTestKit with AnyWordSpecLike with Matchers with DatabaseRollback(driver) {
+class AuthSpec extends ScalaTestWithActorTestKit with AnyWordSpecLike with Matchers {
   trait ExistingUser {
     val existingPassword = "open-sesame"
     val existingUser: User = User("phredsmerd", Auth.hashPassword(existingPassword), "phredsmerd@example.com")

@@ -1,13 +1,13 @@
 package net.jcain.spelt.store
 
 import neotypes.AsyncDriver
+import neotypes.generic.implicits.*
 import neotypes.mappers.ResultMapper
 import neotypes.syntax.all.*
-import net.jcain.spelt.models.{Config, Room}
 import net.jcain.spelt.models.requests.CreateRoomRequest
-import neotypes.generic.implicits.*
+import net.jcain.spelt.models.{Config, Room}
+import org.apache.pekko.actor.typed.scaladsl.Behaviors
 import org.apache.pekko.actor.typed.{ActorRef, Behavior}
-import org.apache.pekko.actor.typed.scaladsl.{AbstractBehavior, ActorContext, Behaviors}
 import wvlet.airframe.ulid.ULID
 
 import javax.inject.Inject
@@ -20,17 +20,13 @@ object RoomStore:
 
   sealed trait Response
   final case class CreateRoomResponse(roomOrError: Either[String, Room]) extends Response
-  
-class RoomStore @Inject()(context: ActorContext[RoomStore.Request],
-                          driver: AsyncDriver[Future])(implicit xc: ExecutionContext) extends AbstractBehavior[RoomStore.Request](context):
-  import RoomStore.*
 
-  def onMessage(message: Request): Behavior[Request] =
-    message match {
+  @Inject()
+  def apply()(implicit driver: AsyncDriver[Future], xc: ExecutionContext): Behavior[Request] =
+    Behaviors.receiveMessage:
       case CreateRoom(roomRequest, replyTo) =>
         createRoom(roomRequest, replyTo)
         Behaviors.same
-    }
 
   /**
    * Creates a Room node and, if successful, responds with the new `Room`
@@ -41,7 +37,7 @@ class RoomStore @Inject()(context: ActorContext[RoomStore.Request],
    * @param roomRequest parsed body from the API request
    * @param replyTo Actor that receives response
    */
-  private def createRoom(roomRequest: CreateRoomRequest, replyTo: ActorRef[Response]): Unit = {
+  private def createRoom(roomRequest: CreateRoomRequest, replyTo: ActorRef[Response])(implicit driver: AsyncDriver[Future], xc: ExecutionContext): Unit = {
     val identifier = ULID.newULIDString
     val roomVersion = roomRequest.room_version.getOrElse(Config.defaultNewRoomVersion)
 

@@ -6,7 +6,7 @@ import neotypes.mappers.ResultMapper
 import neotypes.syntax.all.*
 import net.jcain.spelt.models.{Device, Session, User}
 import net.jcain.spelt.service.Token
-import org.apache.pekko.actor.typed.scaladsl.{AbstractBehavior, ActorContext, Behaviors}
+import org.apache.pekko.actor.typed.scaladsl.Behaviors
 import org.apache.pekko.actor.typed.{ActorRef, Behavior}
 import wvlet.airframe.ulid.ULID
 
@@ -68,17 +68,9 @@ object SessionStore:
   final case class TokenFailed(error: Throwable) extends Response
   final case class TokenOtherError(error: Throwable) extends Response
 
-class SessionStore @Inject() (context: ActorContext[SessionStore.Request],
-                              driver: AsyncDriver[Future])(implicit xc: ExecutionContext) extends AbstractBehavior[SessionStore.Request](context):
-  import SessionStore.*
-
-  /**
-   * Dispatches received messages
-   *
-   * @return subsequent Behaviors
-   */
-  override def onMessage(message: Request): Behavior[Request] = 
-    message match {
+  @Inject()
+  def apply()(implicit driver: AsyncDriver[Future], xc: ExecutionContext): Behavior[Request] =
+    Behaviors.receiveMessage:
       case GetOrCreateSession(name, remoteIpAddress, deviceIdOption, deviceNameOption, replyTo) =>
         deviceIdOption match {
           // If deviceId isn't specified, create a new Session.
@@ -103,7 +95,6 @@ class SessionStore @Inject() (context: ActorContext[SessionStore.Request],
       case VerifyToken(token, replyTo) =>
         verifyToken(token, replyTo)
         Behaviors.same
-    }
 
   /**
    * Looks up Session by `username` and `deviceId`; if found then updates that Session with a new
@@ -118,7 +109,9 @@ class SessionStore @Inject() (context: ActorContext[SessionStore.Request],
                            remoteIpAddress: String,
                            deviceId: String,
                            deviceName: Option[String],
-                           replyTo: ActorRef[Response]): Unit =
+                           replyTo: ActorRef[Response]
+                          )(implicit driver: AsyncDriver[Future],
+                            xc: ExecutionContext): Unit =
     c"""
       MATCH (u:User)-[:AUTHENTICATED_AS]->(s:Session)-[:CONNECTED_FROM]->(d:Device)
       WHERE u.name = $username
@@ -147,7 +140,9 @@ class SessionStore @Inject() (context: ActorContext[SessionStore.Request],
   private def createSession(username: String,
                             remoteIpAddress: String,
                             deviceNameOption: Option[String],
-                            replyTo: ActorRef[Response]): Unit =
+                            replyTo: ActorRef[Response]
+                           )(implicit driver: AsyncDriver[Future],
+                             xc: ExecutionContext): Unit =
     val ulid = ULID.newULIDString
     val deviceId = ULID.newULIDString
     val token = Token.generateAndSign(ulid)
@@ -194,7 +189,7 @@ class SessionStore @Inject() (context: ActorContext[SessionStore.Request],
    * @param ulid Session ULID
    * @param replyTo requesting Actor
    */
-  private def updateSession(ulid: String, replyTo: ActorRef[Response]): Unit =
+  private def updateSession(ulid: String, replyTo: ActorRef[Response])(implicit driver: AsyncDriver[Future], xc: ExecutionContext): Unit =
     val token = Token.generateAndSign(ulid)
 
     // The call to `single()` will error if the Session isn't found, but since this method is
@@ -217,7 +212,7 @@ class SessionStore @Inject() (context: ActorContext[SessionStore.Request],
         case Failure(error) =>
           replyTo ! SessionFailed(error)
 
-  private def deleteSession(ulid: String, replyTo: ActorRef[Response]): Unit =
+  private def deleteSession(ulid: String, replyTo: ActorRef[Response])(implicit driver: AsyncDriver[Future], xc: ExecutionContext): Unit =
     c"MATCH (s:Session) WHERE s.ulid = $ulid DETACH DELETE s"
       .execute
       .resultSummary(driver)
@@ -229,7 +224,7 @@ class SessionStore @Inject() (context: ActorContext[SessionStore.Request],
         case Success(_) =>
           replyTo ! SessionDeletionFailed(s"Session not found with ID $ulid")
 
-  private def deleteAllSessions(username: String, replyTo: ActorRef[Response]): Unit =
+  private def deleteAllSessions(username: String, replyTo: ActorRef[Response])(implicit driver: AsyncDriver[Future], xc: ExecutionContext): Unit =
     c"""MATCH (u:User)
         WHERE u.name = $username
         MATCH (u)-[:AUTHENTICATED_AS]->(s:Session)
@@ -258,7 +253,7 @@ class SessionStore @Inject() (context: ActorContext[SessionStore.Request],
    * @param token JWT to validate
    * @param replyTo requesting Actor
    */
-  private def verifyToken(token: String, replyTo: ActorRef[Response]): Unit =
+  private def verifyToken(token: String, replyTo: ActorRef[Response])(implicit driver: AsyncDriver[Future], xc: ExecutionContext): Unit =
     Token.verify(token) match {
       case Left(error) =>
         replyTo ! TokenFailed(error)

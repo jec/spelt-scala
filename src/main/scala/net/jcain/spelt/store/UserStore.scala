@@ -6,7 +6,7 @@ import neotypes.mappers.ResultMapper
 import neotypes.syntax.all.*
 import net.jcain.spelt.models.User
 import net.jcain.spelt.service.Auth
-import org.apache.pekko.actor.typed.scaladsl.{AbstractBehavior, ActorContext, Behaviors}
+import org.apache.pekko.actor.typed.scaladsl.Behaviors
 import org.apache.pekko.actor.typed.{ActorRef, Behavior}
 
 import javax.inject.Inject
@@ -40,17 +40,9 @@ object UserStore:
   final case class GetUserResponse(user: Either[Throwable, Option[User]]) extends Response
   final case class UserInquiryResponse(exists: Either[Throwable, Boolean]) extends Response
 
-class UserStore @Inject()(context: ActorContext[UserStore.Request],
-                           driver: AsyncDriver[Future])(implicit xc: ExecutionContext) extends AbstractBehavior[UserStore.Request](context):
-  import UserStore.*
-
-  /**
-   * Dispatches received messages
-   *
-   * @return the subsequent Behaviors
-   */
-  override def onMessage(message: Request): Behavior[Request] =
-    message match {
+  @Inject()
+  def apply()(implicit driver: AsyncDriver[Future], xc: ExecutionContext): Behavior[Request] =
+    Behaviors.receiveMessage:
       case CreateUser(name, password, email, replyTo) =>
         checkBeforeCreate(name, password, email, replyTo)
         Behaviors.same
@@ -62,7 +54,6 @@ class UserStore @Inject()(context: ActorContext[UserStore.Request],
       case UserInquiry(name, replyTo) =>
         check(name, replyTo)
         Behaviors.same
-    }
 
   /**
    * Creates a user
@@ -72,7 +63,7 @@ class UserStore @Inject()(context: ActorContext[UserStore.Request],
    * @param email email address
    * @param replyTo Actor that receives response
    */
-  private def create(name: String, password: String, email: String, replyTo: ActorRef[Response]): Unit =
+  private def create(name: String, password: String, email: String, replyTo: ActorRef[Response])(implicit driver: AsyncDriver[Future], xc: ExecutionContext): Unit =
     val encryptedPassword = Auth.argon2Encoder.encode(password)
 
     c"CREATE (u:User { name: $name, encryptedPassword: $encryptedPassword, email: $email }) RETURN u.name"
@@ -90,7 +81,7 @@ class UserStore @Inject()(context: ActorContext[UserStore.Request],
    * @param name username to look up
    * @param replyTo Actor that receives response
    */
-  private def read(name: String, replyTo: ActorRef[Response]): Unit =
+  private def read(name: String, replyTo: ActorRef[Response])(implicit driver: AsyncDriver[Future], xc: ExecutionContext): Unit =
     c"MATCH (u:User) WHERE u.name = $name RETURN u"
       .query(ResultMapper.productDerive[User])
       .list(driver)
@@ -108,7 +99,7 @@ class UserStore @Inject()(context: ActorContext[UserStore.Request],
    * @param name username to look up
    * @param replyTo Actor that receives response
    */
-  private def check(name: String, replyTo: ActorRef[Response]): Unit =
+  private def check(name: String, replyTo: ActorRef[Response])(implicit driver: AsyncDriver[Future], xc: ExecutionContext): Unit =
     c"MATCH (u:User) WHERE u.name = $name RETURN count(u)"
       .query(ResultMapper.int)
       .single(driver)
@@ -126,7 +117,7 @@ class UserStore @Inject()(context: ActorContext[UserStore.Request],
    * @param email email address
    * @param replyTo Actor that receives response
    */
-  private def checkBeforeCreate(name: String, password: String, email: String, replyTo: ActorRef[Response]): Unit =
+  private def checkBeforeCreate(name: String, password: String, email: String, replyTo: ActorRef[Response])(implicit driver: AsyncDriver[Future], xc: ExecutionContext): Unit =
     c"MATCH (u:User) WHERE u.name = $name RETURN count(u)"
       .query(ResultMapper.int)
       .single(driver)

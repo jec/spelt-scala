@@ -1,23 +1,25 @@
 package net.jcain.spelt.store
 
 import neotypes.AsyncDriver
+import net.jcain.spelt.Module
 import net.jcain.spelt.models.User
-import net.jcain.spelt.service.{Auth, Token}
+import net.jcain.spelt.service.{Auth, Main, Token}
 import net.jcain.spelt.support.DatabaseRollback
 import org.apache.pekko.actor.testkit.typed.scaladsl.{ScalaTestWithActorTestKit, TestProbe}
 import org.apache.pekko.actor.typed.ActorRef
-import org.apache.pekko.actor.typed.scaladsl.Behaviors
 import org.scalatest.Inside.inside
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
 import wvlet.airframe.ulid.ULID
 
-import javax.inject.Inject
 import scala.concurrent.{ExecutionContext, Future}
 
-class SessionStoreSpec @Inject() (implicit driver: AsyncDriver[Future], xc: ExecutionContext) extends ScalaTestWithActorTestKit with AnyWordSpecLike with Matchers with DatabaseRollback(driver) {
+class SessionStoreSpec extends ScalaTestWithActorTestKit with AnyWordSpecLike with Matchers with DatabaseRollback {
   trait TargetActor {
-    val store: ActorRef[SessionStore.Request] = testKit.spawn(Behaviors.setup(context => SessionStore(context, driver)))
+    implicit val driver: AsyncDriver[Future] = Module.driver
+    implicit var execCxt: ExecutionContext = Main.executionContext.get
+
+    val store: ActorRef[SessionStore.Request] = testKit.spawn(SessionStore())
     val probe: TestProbe[SessionStore.Response] = testKit.createTestProbe[SessionStore.Response]()
   }
 
@@ -26,7 +28,7 @@ class SessionStoreSpec @Inject() (implicit driver: AsyncDriver[Future], xc: Exec
     val existingUser: User = User("phredsmerd", Auth.hashPassword(existingPassword), "phredsmerd@example.com")
 
     // Create User in database.
-    private val userStore = testKit.spawn(Behaviors.setup(context => UserStore(context, driver)))
+    private val userStore = testKit.spawn(UserStore())
     private val userStoreProbe = testKit.createTestProbe[UserStore.Response]()
     userStore ! UserStore.CreateUser(
       existingUser.name,
@@ -38,7 +40,7 @@ class SessionStoreSpec @Inject() (implicit driver: AsyncDriver[Future], xc: Exec
   }
 
   trait ExistingSession extends ExistingUser {
-    val sessionStore: ActorRef[SessionStore.Request] = testKit.spawn(Behaviors.setup(context => SessionStore(context, driver)))
+    val sessionStore: ActorRef[SessionStore.Request] = testKit.spawn(SessionStore())
     val sessionStoreProbe: TestProbe[SessionStore.Response] = testKit.createTestProbe[SessionStore.Response]()
 
     sessionStore !
