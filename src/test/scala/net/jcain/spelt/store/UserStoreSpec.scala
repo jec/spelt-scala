@@ -1,9 +1,6 @@
 package net.jcain.spelt.store
 
-import neotypes.AsyncDriver
-import net.jcain.spelt.Module
 import net.jcain.spelt.models.User
-import net.jcain.spelt.service.Main
 import net.jcain.spelt.support.DatabaseRollback
 import org.apache.pekko.actor.testkit.typed.scaladsl.FishingOutcomes.complete
 import org.apache.pekko.actor.testkit.typed.scaladsl.{ScalaTestWithActorTestKit, TestProbe}
@@ -12,14 +9,11 @@ import org.scalatest.Inside.inside
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
 
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.DurationInt
-import scala.concurrent.{ExecutionContext, Future}
 
 class UserStoreSpec extends ScalaTestWithActorTestKit with AnyWordSpecLike with Matchers with DatabaseRollback {
   trait TargetActor {
-    implicit val driver: AsyncDriver[Future] = Module.driver
-    implicit var execCxt: ExecutionContext = Main.executionContext.get
-
     val actor: ActorRef[UserStore.Request] = testKit.spawn(UserStore())
     val probe: TestProbe[UserStore.Response] = testKit.createTestProbe[UserStore.Response]()
   }

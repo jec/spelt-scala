@@ -1,9 +1,7 @@
 package net.jcain.spelt.store
 
-import neotypes.AsyncDriver
-import net.jcain.spelt.Module
 import net.jcain.spelt.models.User
-import net.jcain.spelt.service.{Auth, Main, Token}
+import net.jcain.spelt.service.{Auth, Token}
 import net.jcain.spelt.support.DatabaseRollback
 import org.apache.pekko.actor.testkit.typed.scaladsl.{ScalaTestWithActorTestKit, TestProbe}
 import org.apache.pekko.actor.typed.ActorRef
@@ -12,13 +10,10 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
 import wvlet.airframe.ulid.ULID
 
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.ExecutionContext.Implicits.global
 
 class SessionStoreSpec extends ScalaTestWithActorTestKit with AnyWordSpecLike with Matchers with DatabaseRollback {
   trait TargetActor {
-    implicit val driver: AsyncDriver[Future] = Module.driver
-    implicit var execCxt: ExecutionContext = Main.executionContext.get
-
     val store: ActorRef[SessionStore.Request] = testKit.spawn(SessionStore())
     val probe: TestProbe[SessionStore.Response] = testKit.createTestProbe[SessionStore.Response]()
   }

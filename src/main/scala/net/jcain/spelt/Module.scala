@@ -30,15 +30,7 @@ class Module extends AbstractModule with PekkoGuiceSupport:
     override def configure(): Unit =
       import scala.concurrent.ExecutionContext.Implicits.global
       system
-  /*
-  bind(classOf[EventStore.Request]).asEagerSingleton()
-  bind(classOf[RoomStore.Request]).asEagerSingleton()
-  bind(classOf[SessionStore.Request]).asEagerSingleton()
-  bind(classOf[UserStore.Request]).asEagerSingleton()
-  bindTypedActor(Auth, "AuthActor")
-  bindTypedActor(Events, "EventsActor")
-  bindTypedActor(Rooms, "RoomActor")
-*/
+      driver
 
   /**
    * Lazily instantiates a typed `ActorSystem` that uses `Main` as the root actor
