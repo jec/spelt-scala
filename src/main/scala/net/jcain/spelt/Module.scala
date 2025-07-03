@@ -3,10 +3,10 @@ package net.jcain.spelt
 import com.google.inject.{AbstractModule, Provides}
 import neotypes.{AsyncDriver, GraphDatabase}
 import net.jcain.spelt.models.Config
-import net.jcain.spelt.service.{Auth, Main}
-import org.apache.pekko.actor.typed.scaladsl.{ActorContext, Behaviors}
+import net.jcain.spelt.service.{Auth, Main, Rooms}
 import org.apache.pekko.actor.typed.{ActorRef, ActorSystem}
 import org.neo4j.driver.AuthTokens
+import play.api.Logging
 import play.api.libs.concurrent.PekkoGuiceSupport
 
 import javax.inject.Inject
@@ -21,7 +21,7 @@ object Module:
 /**
  * Instantiates actors and binds them for injection
  */
-class Module extends AbstractModule with PekkoGuiceSupport:
+class Module extends AbstractModule with PekkoGuiceSupport with Logging:
   import Module.*
 
   /**
@@ -29,8 +29,8 @@ class Module extends AbstractModule with PekkoGuiceSupport:
    */
     override def configure(): Unit =
       import scala.concurrent.ExecutionContext.Implicits.global
-      system
       driver
+      system
 
   /**
    * Lazily instantiates a typed `ActorSystem` that uses `Main` as the root actor
@@ -47,13 +47,7 @@ class Module extends AbstractModule with PekkoGuiceSupport:
         system
 
       case None =>
-        val system = ActorSystem[Main.Request](
-          Behaviors.setup[Main.Request] { (context: ActorContext[Main.Request]) =>
-            context.spawn(Main(context), "Main")
-            Behaviors.same
-          },
-          "Main"
-        )
+        val system = ActorSystem[Main.Request](Main(), "Main")
         _system = Some(system)
         system
     }
@@ -78,6 +72,7 @@ class Module extends AbstractModule with PekkoGuiceSupport:
         val username = Config.database.getString("username")
         val password = Config.database.getString("password")
 
+        logger.info("Creating GraphDatabase.AsyncDriver")
         val driver = GraphDatabase.asyncDriver[Future](url, AuthTokens.basic(username, password))
         _driver = Some(driver)
         driver
@@ -85,3 +80,6 @@ class Module extends AbstractModule with PekkoGuiceSupport:
 
   @Provides
   def authRef: ActorRef[Auth.Request] = Main.authRef.get
+
+  @Provides
+  def roomsRef: ActorRef[Rooms.Request] = Main.roomsRef.get

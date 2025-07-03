@@ -1,39 +1,34 @@
 package net.jcain.spelt.store
 
 import neotypes.AsyncDriver
-import neotypes.syntax.all.*
+import neotypes.syntax.all.c
+import net.jcain.spelt.models.User
+import net.jcain.spelt.models.events.MRoomCreate
 import net.jcain.spelt.models.requests.CreateRoomRequest
+import org.apache.pekko.actor.typed.scaladsl.Behaviors
 import org.apache.pekko.actor.typed.{ActorRef, Behavior}
-import org.apache.pekko.actor.typed.scaladsl.{AbstractBehavior, ActorContext, Behaviors}
+import play.api.Logging
+import wvlet.airframe.ulid.ULID
 
 import javax.inject.Inject
 import scala.concurrent.{ExecutionContext, Future}
+import scala.util.{Failure, Success}
 
-object EventStore:
+object EventStore extends Logging:
   sealed trait Request
-  final case class CreateEventsForNewRoom(roomId: String, request: CreateRoomRequest, replyTo: ActorRef[Response]) extends Request
+  final case class CreateEventsForNewRoom(roomId: String, request: CreateRoomRequest, user: User, replyTo: ActorRef[Response]) extends Request
 
   sealed trait Response
+  final case class CreateEventsForNewRoomResponse(unitOrError: Either[String, Unit]) extends Response
 
-class EventStore @Inject()(context: ActorContext[EventStore.Request],
-                           driver: AsyncDriver[Future])(implicit xc: ExecutionContext) extends AbstractBehavior[EventStore.Request](context):
-  import EventStore.*
-
-  def onMessage(message: Request): Behavior[Request] =
-    message match {
-      case CreateEventsForNewRoom(roomId, request, replyTo) =>
-        createEventsForNewRoom(roomId, request, replyTo)
+  @Inject()
+  def apply()(implicit driver: AsyncDriver[Future], xc: ExecutionContext): Behavior[Request] =
+    Behaviors.receiveMessage:
+      case CreateEventsForNewRoom(roomId, request, user, replyTo) =>
+        createEventsForNewRoom(roomId, request, user, replyTo)
         Behaviors.same
-    }
 
-  private def createEventsForNewRoom(roomId: String, request: CreateRoomRequest, replyTo: ActorRef[Response])(implicit xc: ExecutionContext): Unit = {
-    val result =
-      for
-        e0 <- createRoomCreateEvent(roomId, request)
-        e1 <- createRoomMemberEvent(roomId, request)
-      yield
-        (e0, e1)
-
+  private def createEventsForNewRoom(roomId: String, request: CreateRoomRequest, user: User, replyTo: ActorRef[Response])(implicit driver: AsyncDriver[Future], xc: ExecutionContext): Unit = {
     // Event m.room.create
     // Event m.room.member
     // Event m.room.power_levels
@@ -43,15 +38,36 @@ class EventStore @Inject()(context: ActorContext[EventStore.Request],
     // Event m.room_name if `name`
     // Event m.room.topic if `topic`
     // Events from `invite` and `invite_3pid`
-    ()
+
+    // Initiate the Futures in the `for` so that they're run sequentially, which is required by the
+    // Matrix specification.
+    (for
+      e0 <- createRoomCreateEvent(roomId, request, user)
+//        e1 <- createRoomMemberEvent(roomId, request) if e0.counters.nodesCreated > 1
+    yield e0)
+      .onComplete:
+        case Failure(error) =>
+          logger.error(error.toString)
+          logger.error(error.getStackTrace.mkString("[", ";", "]"))
+          logger.error(error.getCause.toString)
+          logger.error(error.getCause.getStackTrace.mkString("[\n", ";\n", "]"))
+          replyTo ! CreateEventsForNewRoomResponse(Left(error.getMessage))
+        case Success(rs0) =>
+          replyTo ! CreateEventsForNewRoomResponse(Right(()))
   }
 
-  private def createRoomCreateEvent(roomId: String, request: CreateRoomRequest) =
-    c"CREATE"
+  private def createRoomCreateEvent(roomId: String, request: CreateRoomRequest, user: User)(implicit driver: AsyncDriver[Future], xc: ExecutionContext) = {
+    val event = MRoomCreate(ULID.newULIDString, ULID.newULIDString, 0)
+
+    c"""CREATE (e:#${event.label} {
+          creator: ${user.name}
+        })
+      """
       .execute
       .resultSummary(driver)
+  }
 
-  private def createRoomMemberEvent(roomId: String, request: CreateRoomRequest) =
+  private def createRoomMemberEvent(roomId: String, request: CreateRoomRequest)(implicit driver: AsyncDriver[Future], xc: ExecutionContext) =
     c"CREATE"
       .execute
       .resultSummary(driver)

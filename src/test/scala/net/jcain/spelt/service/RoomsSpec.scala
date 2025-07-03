@@ -1,6 +1,6 @@
 package net.jcain.spelt.service
 
-import net.jcain.spelt.models.{Config, Room}
+import net.jcain.spelt.models.{Config, Room, User}
 import net.jcain.spelt.support.{MockEvents, MockRoomStore}
 import org.apache.pekko.actor.testkit.typed.scaladsl.ScalaTestWithActorTestKit
 import org.scalatest.Inside.inside
@@ -10,7 +10,7 @@ import play.api.libs.json.{JsObject, Json}
 import wvlet.airframe.ulid.ULID
 
 
-class RoomsSpec extends ScalaTestWithActorTestKit with AnyWordSpecLike with Matchers {
+class RoomsSpec extends ScalaTestWithActorTestKit with AnyWordSpecLike with Matchers:
   trait MinimalRoomsRequest {
     val name = "My New Room"
     val alias = "newalias"
@@ -34,8 +34,9 @@ class RoomsSpec extends ScalaTestWithActorTestKit with AnyWordSpecLike with Matc
         private val roomStore = testKit.spawn(MockRoomStore(expectedRoom))
         private val rooms = testKit.spawn(Rooms(events, roomStore))
         private val probe = testKit.createTestProbe[Rooms.Response]()
+        private val user = User("phred", "foo", "phred@example.com")
 
-        rooms ! Rooms.CreateRoom(request, probe.ref)
+        rooms ! Rooms.CreateRoom(request, user, probe.ref)
 
         inside(probe.expectMessageType[Rooms.Response]) {
           case Rooms.CreateRoomResponse(Right(room)) =>
@@ -43,4 +44,3 @@ class RoomsSpec extends ScalaTestWithActorTestKit with AnyWordSpecLike with Matc
       }
     }
   }
-}

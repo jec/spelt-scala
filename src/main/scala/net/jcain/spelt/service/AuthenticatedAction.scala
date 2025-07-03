@@ -59,6 +59,7 @@ class AuthenticatedAction @Inject()(
         if authValue.startsWith("Bearer ") then
           Main.sessionStoreRef.get.ask(ref => SessionStore.VerifyToken(authValue.substring(7), ref)).map {
             case SessionStore.TokenPassed(user, session, device) =>
+              logger.info { s"Authenticated user ${user.name} with session ${session.ulid} on device ${device.identifier}" }
               Some(AuthenticatedRequest(user, session, device, request))
 
             case SessionStore.TokenFailed(error) =>

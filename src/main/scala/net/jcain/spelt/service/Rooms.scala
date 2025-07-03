@@ -2,7 +2,7 @@ package net.jcain.spelt.service
 
 import com.google.inject.Provides
 import net.jcain.spelt.json.Reads.requests.createRoomRequest
-import net.jcain.spelt.models.Room
+import net.jcain.spelt.models.{Room, User}
 import net.jcain.spelt.models.requests.CreateRoomRequest
 import net.jcain.spelt.store.RoomStore
 import org.apache.pekko.actor.typed.scaladsl.{ActorContext, Behaviors}
@@ -24,8 +24,8 @@ object Rooms extends ActorModule with Logging:
 
   // Actor messages
   sealed trait Request
-  final case class CreateRoom(params: JsValue, replyTo: ActorRef[Response]) extends Request
-  private final case class RoomCreated(room: Room, request: CreateRoomRequest, replyTo: ActorRef[Response]) extends Request
+  final case class CreateRoom(params: JsValue, user: User, replyTo: ActorRef[Response]) extends Request
+  private final case class RoomCreated(room: Room, user: User, request: CreateRoomRequest, replyTo: ActorRef[Response]) extends Request
   private final case class RoomFailed(message: String, replyTo: ActorRef[Response]) extends Request
   private final case class RoomEventsCreated(room: Room, replyTo: ActorRef[Response]) extends Request
   private final case class RoomEventsFailed(message: String, replyTo: ActorRef[Response]) extends Request
@@ -41,12 +41,12 @@ object Rooms extends ActorModule with Logging:
             roomStore: ActorRef[RoomStore.Request]): Behavior[Request] =
     Behaviors.setup { context =>
       Behaviors.receiveMessage[Request] {
-        case CreateRoom(params, replyTo) =>
-          requestCreateRoom(params, roomStore, replyTo, context)
+        case CreateRoom(params, user, replyTo) =>
+          requestCreateRoom(params, user, roomStore, replyTo, context)
           Behaviors.same
 
-        case RoomCreated(room, request, replyTo) =>
-          requestCreateRoomEvents(room, request, events, replyTo, context)
+        case RoomCreated(room, user, request, replyTo) =>
+          requestCreateRoomEvents(room, request, user, events, replyTo, context)
           Behaviors.same
 
         case RoomFailed(message, replyTo) =>
@@ -65,10 +65,11 @@ object Rooms extends ActorModule with Logging:
 
   private def requestCreateRoomEvents(room: Room,
                                       request: CreateRoomRequest,
+                                      user: User,
                                       events: ActorRef[Events.Request],
                                       replyTo: ActorRef[Response],
                                       context: ActorContext[Request]): Unit =
-    context.ask(events, ref => Events.CreateEventsForNewRoom(room.identifier, request, ref)) {
+    context.ask(events, ref => Events.CreateEventsForNewRoom(room.identifier, request, user, ref)) {
       case Success(Events.CreateEventsForNewRoomResponse(Right(()))) =>
         RoomEventsCreated(room, replyTo)
       case Failure(error) =>
@@ -84,6 +85,7 @@ object Rooms extends ActorModule with Logging:
    * @param context
    */
   private def requestCreateRoom(params: JsValue,
+                                user: User,
                                 roomStore: ActorRef[RoomStore.Request],
                                 replyTo: ActorRef[Response],
                                 context: ActorContext[Request]): Unit =
@@ -91,7 +93,7 @@ object Rooms extends ActorModule with Logging:
       case JsSuccess(request, _) =>
         context.ask(roomStore, ref => RoomStore.CreateRoom(request, ref)) {
           case Success(RoomStore.CreateRoomResponse(Right(room))) =>
-            RoomCreated(room, request, replyTo)
+            RoomCreated(room, user, request, replyTo)
           case Success(RoomStore.CreateRoomResponse(Left(errorMessage))) =>
             RoomFailed(errorMessage, replyTo)
           case Failure(error: TimeoutException) =>

@@ -1,30 +1,32 @@
 package net.jcain.spelt.service
 
 import com.google.inject.Provides
+import net.jcain.spelt.models.User
 import net.jcain.spelt.models.requests.CreateRoomRequest
-import org.apache.pekko.actor.typed.{ActorRef, Behavior}
+import net.jcain.spelt.store.EventStore
 import org.apache.pekko.actor.typed.scaladsl.Behaviors
+import org.apache.pekko.actor.typed.{ActorRef, Behavior}
 import play.api.libs.concurrent.ActorModule
 
 object Events extends ActorModule:
   type Message = Request
 
   sealed trait Request
-  final case class CreateEventsForNewRoom(roomId: String, request: CreateRoomRequest, replyTo: ActorRef[Response]) extends Request
+  final case class CreateEventsForNewRoom(roomId: String, request: CreateRoomRequest, user: User, replyTo: ActorRef[Response]) extends Request
 
   sealed trait Response
   final case class CreateEventsForNewRoomResponse(unitOrError: Either[String, Unit]) extends Response
 
   @Provides
-  def apply(): Behavior[Request] = Behaviors.setup { context =>
+  def apply(eventStore: ActorRef[EventStore.Request]): Behavior[Request] = Behaviors.setup { context =>
     Behaviors.receiveMessage {
-      case CreateEventsForNewRoom(roomId, request, replyTo) =>
-        createEventsForNewRoom(roomId, request, replyTo)
+      case CreateEventsForNewRoom(roomId, request, user, replyTo) =>
+        createEventsForNewRoom(roomId, request, user, replyTo)
         Behaviors.same
     }
   }
 
-  private def createEventsForNewRoom(roomId: String, request: CreateRoomRequest, replyTo: ActorRef[Response]): Unit =
+  private def createEventsForNewRoom(roomId: String, request: CreateRoomRequest, user: User, replyTo: ActorRef[Response]): Unit =
     // Event m.room.create
     // Event m.room.member
     // Event m.room.power_levels
