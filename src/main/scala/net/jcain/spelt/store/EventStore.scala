@@ -1,6 +1,7 @@
 package net.jcain.spelt.store
 
 import neotypes.AsyncDriver
+import neotypes.generic.implicits.*
 import neotypes.syntax.all.c
 import net.jcain.spelt.models.User
 import net.jcain.spelt.models.events.MRoomCreate
@@ -59,9 +60,8 @@ object EventStore extends Logging:
   private def createRoomCreateEvent(roomId: String, request: CreateRoomRequest, user: User)(implicit driver: AsyncDriver[Future], xc: ExecutionContext) = {
     val event = MRoomCreate(ULID.newULIDString, ULID.newULIDString, 0)
 
-    c"""CREATE (e:#${event.label} {
-          creator: ${user.name}
-        })
+    c"""MATCH (r:Room) WHERE r.identifier = $roomId
+        CREATE (e:#${event.label} {$event})-[:SENT_TO]->(r)
       """
       .execute
       .resultSummary(driver)

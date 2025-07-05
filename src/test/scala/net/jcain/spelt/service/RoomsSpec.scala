@@ -1,7 +1,7 @@
 package net.jcain.spelt.service
 
 import net.jcain.spelt.models.{Config, Room, User}
-import net.jcain.spelt.support.{MockEvents, MockRoomStore}
+import net.jcain.spelt.support.{MockEventStore, MockEvents, MockRoomStore}
 import org.apache.pekko.actor.testkit.typed.scaladsl.ScalaTestWithActorTestKit
 import org.scalatest.Inside.inside
 import org.scalatest.matchers.should.Matchers
@@ -28,11 +28,11 @@ class RoomsSpec extends ScalaTestWithActorTestKit with AnyWordSpecLike with Matc
       "create Room and Event nodes" in new MinimalRoomsRequest {
         val expectedRoom: Room = Room(ULID.newULIDString, roomVersion = Config.defaultNewRoomVersion)
 
-        // Configure MockEvents to answer with CreateEventsForNewRoomResponse(Right(_)).
-        private val events = testKit.spawn(MockEvents())
+        // Configure MockEventStore to answer with CreateEventsForNewRoomResponse(Right(_)).
+        private val eventStore = testKit.spawn(MockEventStore())
         // Configure MockRoomStore to answer with CreateRoomResponse(Right(_)).
         private val roomStore = testKit.spawn(MockRoomStore(expectedRoom))
-        private val rooms = testKit.spawn(Rooms(events, roomStore))
+        private val rooms = testKit.spawn(Rooms(eventStore, roomStore))
         private val probe = testKit.createTestProbe[Rooms.Response]()
         private val user = User("phred", "foo", "phred@example.com")
 

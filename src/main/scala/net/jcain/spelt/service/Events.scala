@@ -8,32 +8,33 @@ import org.apache.pekko.actor.typed.scaladsl.Behaviors
 import org.apache.pekko.actor.typed.{ActorRef, Behavior}
 import play.api.libs.concurrent.ActorModule
 
+/**
+  * An Actor that implements the logic around `Event`s
+  *
+  * This actor interacts with the `EventStore` as necessary to request CRUD actions on persistent
+  * data relevant to Events. Controllers and other actors should use this actor instead of
+  * EventStore when needing such Event-related CRUD actions.
+  *
+  * Messages it receives:
+  *
+  *   - `Foo` — To do
+  *
+  *     Responses:
+  *
+  *       - `FooResponse` — wraps a `Right(Unit)` if successful; else a
+  *         `Left(errorMessage: String)`
+  */
 object Events extends ActorModule:
   type Message = Request
 
   sealed trait Request
-  final case class CreateEventsForNewRoom(roomId: String, request: CreateRoomRequest, user: User, replyTo: ActorRef[Response]) extends Request
 
   sealed trait Response
-  final case class CreateEventsForNewRoomResponse(unitOrError: Either[String, Unit]) extends Response
 
   @Provides
   def apply(eventStore: ActorRef[EventStore.Request]): Behavior[Request] = Behaviors.setup { context =>
     Behaviors.receiveMessage {
-      case CreateEventsForNewRoom(roomId, request, user, replyTo) =>
-        createEventsForNewRoom(roomId, request, user, replyTo)
+      case _ =>
         Behaviors.same
     }
   }
-
-  private def createEventsForNewRoom(roomId: String, request: CreateRoomRequest, user: User, replyTo: ActorRef[Response]): Unit =
-    // Event m.room.create
-    // Event m.room.member
-    // Event m.room.power_levels
-    // Event m.room.canonical_alias if `room_alias_name`
-    // Events in `preset`
-    // Events in `initial_state`
-    // Event m.room_name if `name`
-    // Event m.room.topic if `topic`
-    // Events from `invite` and `invite_3pid`
-    ()

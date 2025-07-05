@@ -57,7 +57,7 @@ object Main:
       context.watch(_eventsRef.get)
 
       context.log.info("Spawning Rooms")
-      _roomsRef = Some(context.spawn(Rooms(_eventsRef.get, _roomStoreRef.get), "Rooms"))
+      _roomsRef = Some(context.spawn(Rooms(_eventStoreRef.get, _roomStoreRef.get), "Rooms"))
       context.watch(_roomsRef.get)
 
       Behaviors

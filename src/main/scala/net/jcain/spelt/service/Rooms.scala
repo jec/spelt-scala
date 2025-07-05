@@ -4,7 +4,7 @@ import com.google.inject.Provides
 import net.jcain.spelt.json.Reads.requests.createRoomRequest
 import net.jcain.spelt.models.{Room, User}
 import net.jcain.spelt.models.requests.CreateRoomRequest
-import net.jcain.spelt.store.RoomStore
+import net.jcain.spelt.store.{EventStore, RoomStore}
 import org.apache.pekko.actor.typed.scaladsl.{ActorContext, Behaviors}
 import org.apache.pekko.actor.typed.{ActorRef, Behavior}
 import org.apache.pekko.util.Timeout
@@ -17,6 +17,21 @@ import java.util.concurrent.TimeoutException
 import scala.concurrent.duration.DurationInt
 import scala.util.{Failure, Success}
 
+/**
+  * An Actor that implements the logic around `Room`s
+  *
+  * This actor interacts with the `RoomStore` (and in one case, with `EventStore`) as necessary to
+  * request CRUD actions on persistent data relevant to Rooms. Controllers and other actors should
+  * use this actor instead of RoomStore when needing such Room-related CRUD actions.
+  *
+  * Messages it receives:
+  *
+  *   - CreateRoom — creates a `Room`
+  *
+  *     Responses:
+  *
+  *       - CreateRoomResponse — wraps a `Right(Room)` if successful; else a `Left(errorMessage: String)`
+  */
 object Rooms extends ActorModule with Logging:
   type Message = Request
 
@@ -37,7 +52,7 @@ object Rooms extends ActorModule with Logging:
   private type RequestAndResponse = Request | RoomStore.Response
 
   @Provides
-  def apply(events: ActorRef[Events.Request],
+  def apply(eventStore: ActorRef[EventStore.Request],
             roomStore: ActorRef[RoomStore.Request]): Behavior[Request] =
     Behaviors.setup { context =>
       Behaviors.receiveMessage[Request] {
@@ -46,7 +61,7 @@ object Rooms extends ActorModule with Logging:
           Behaviors.same
 
         case RoomCreated(room, user, request, replyTo) =>
-          requestCreateRoomEvents(room, request, user, events, replyTo, context)
+          requestCreateRoomEvents(room, request, user, eventStore, replyTo, context)
           Behaviors.same
 
         case RoomFailed(message, replyTo) =>
@@ -63,15 +78,27 @@ object Rooms extends ActorModule with Logging:
       }
     }
 
+  /**
+   * Sends request to `EventStore` actor to create all `Event`s relevant to initial room creation
+   *
+   * @param room
+   * @param request
+   * @param user
+   * @param eventStore
+   * @param replyTo
+   * @param context
+   */
   private def requestCreateRoomEvents(room: Room,
                                       request: CreateRoomRequest,
                                       user: User,
-                                      events: ActorRef[Events.Request],
+                                      eventStore: ActorRef[EventStore.Request],
                                       replyTo: ActorRef[Response],
                                       context: ActorContext[Request]): Unit =
-    context.ask(events, ref => Events.CreateEventsForNewRoom(room.identifier, request, user, ref)) {
-      case Success(Events.CreateEventsForNewRoomResponse(Right(()))) =>
+    context.ask(eventStore, ref => EventStore.CreateEventsForNewRoom(room.identifier, request, user, ref)) {
+      case Success(EventStore.CreateEventsForNewRoomResponse(Right(()))) =>
         RoomEventsCreated(room, replyTo)
+      case Success(EventStore.CreateEventsForNewRoomResponse(Left(errorMessage))) =>
+        RoomEventsFailed(errorMessage, replyTo)
       case Failure(error) =>
         RoomEventsFailed(error.getMessage, replyTo)
     }
@@ -91,7 +118,7 @@ object Rooms extends ActorModule with Logging:
                                 context: ActorContext[Request]): Unit =
     params.validate[CreateRoomRequest] match {
       case JsSuccess(request, _) =>
-        context.ask(roomStore, ref => RoomStore.CreateRoom(request, ref)) {
+        context.ask(roomStore, ref => RoomStore.CreateRoom(request, user.name, ref)) {
           case Success(RoomStore.CreateRoomResponse(Right(room))) =>
             RoomCreated(room, user, request, replyTo)
           case Success(RoomStore.CreateRoomResponse(Left(errorMessage))) =>

@@ -7,6 +7,6 @@ import org.apache.pekko.actor.typed.scaladsl.Behaviors
 
 object MockRoomStore:
   def apply(room: Room): Behavior[RoomStore.Request] = Behaviors.receiveMessage:
-    case RoomStore.CreateRoom(roomRequest, replyTo) =>
+    case RoomStore.CreateRoom(roomRequest, username, replyTo) =>
       replyTo ! RoomStore.CreateRoomResponse(Right(room))
       Behaviors.same

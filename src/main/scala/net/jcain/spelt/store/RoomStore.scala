@@ -16,7 +16,7 @@ import scala.util.{Failure, Success}
 
 object RoomStore:
   sealed trait Request
-  final case class CreateRoom(roomRequest: CreateRoomRequest, replyTo: ActorRef[Response]) extends Request
+  final case class CreateRoom(roomRequest: CreateRoomRequest, username: String, replyTo: ActorRef[Response]) extends Request
 
   sealed trait Response
   final case class CreateRoomResponse(roomOrError: Either[String, Room]) extends Response
@@ -24,37 +24,38 @@ object RoomStore:
   @Inject()
   def apply()(implicit driver: AsyncDriver[Future], xc: ExecutionContext): Behavior[Request] =
     Behaviors.receiveMessage:
-      case CreateRoom(roomRequest, replyTo) =>
-        createRoom(roomRequest, replyTo)
+      case CreateRoom(roomRequest, username, replyTo) =>
+        createRoom(roomRequest, username, replyTo)
         Behaviors.same
 
   /**
-   * Creates a Room node and, if successful, responds with the new `Room`
-   *
-   * Once a Room node is created, several Event nodes are created which may modify the Room, so the
-   * Room object received from this method is likely to be obsolete within milliseconds.
-   *
-   * @param roomRequest parsed body from the API request
-   * @param replyTo Actor that receives response
-   */
-  private def createRoom(roomRequest: CreateRoomRequest, replyTo: ActorRef[Response])(implicit driver: AsyncDriver[Future], xc: ExecutionContext): Unit = {
-    val identifier = ULID.newULIDString
-    val roomVersion = roomRequest.room_version.getOrElse(Config.defaultNewRoomVersion)
+    * Creates a Room node and, if successful, responds with the new `Room`
+    *
+    * Once a Room node is created, several Event nodes are created which may modify the Room, so the
+    * Room object received from this method is likely to be obsolete within milliseconds.
+    *
+    * @param roomRequest parsed body from the API request
+    * @param username    `User.identifier` of user who made request
+    * @param replyTo     Actor that receives response
+    */
+  private def createRoom(roomRequest: CreateRoomRequest, username: String, replyTo: ActorRef[Response])(implicit driver: AsyncDriver[Future], xc: ExecutionContext): Unit = {
+    val room = Room(
+      identifier = ULID.newULIDString,
+      name = roomRequest.name,
+      topic = roomRequest.topic,
+      alias = roomRequest.room_alias_name,
+      roomVersion = roomRequest.room_version.getOrElse(Config.defaultNewRoomVersion)
+    )
 
-    c"""CREATE (r:Room {
-          identifier: $identifier,
-          name: ${roomRequest.name},
-          alias: ${roomRequest.room_alias_name},
-          topic: ${roomRequest.topic},
-          avatar: null,
-          roomVersion: $roomVersion
-        })
+    c"""MATCH (u:User) WHERE u.name = $username
+        CREATE (r:Room {$room})<-[:CREATED]-(u)
         RETURN r"""
       .query(ResultMapper.productDerive[Room])
       .withResultSummary
       .single(driver)
       .onComplete:
         case Failure(error) =>
+          println(error.getCause)
           replyTo ! CreateRoomResponse(Left(error.getMessage))
         case Success((room, summary)) if summary.counters.nodesCreated == 1 =>
           replyTo ! CreateRoomResponse(Right(room))

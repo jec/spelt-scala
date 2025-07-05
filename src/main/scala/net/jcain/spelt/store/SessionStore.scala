@@ -10,6 +10,7 @@ import org.apache.pekko.actor.typed.scaladsl.Behaviors
 import org.apache.pekko.actor.typed.{ActorRef, Behavior}
 import wvlet.airframe.ulid.ULID
 
+import java.time.ZonedDateTime
 import javax.inject.Inject
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}
@@ -143,9 +144,14 @@ object SessionStore:
                             replyTo: ActorRef[Response]
                            )(implicit driver: AsyncDriver[Future],
                              xc: ExecutionContext): Unit =
-    val ulid = ULID.newULIDString
-    val deviceId = ULID.newULIDString
-    val token = Token.generateAndSign(ulid)
+    val sessionId = ULID.newULIDString
+    val session = Session(sessionId, Token.generateAndSign(sessionId))
+    val device = Device(
+      ULID.newULIDString,
+      deviceNameOption,
+      remoteIpAddress,
+      ZonedDateTime.now
+    )
 
     // The RETURN value allows to discern whether the MATCH on User succeeds. Otherwise, using
     // execute() would succeed even if the MATCH failed.
@@ -154,17 +160,10 @@ object SessionStore:
     c"""
       MATCH (u:User)
       WHERE u.name = $username
-      CREATE (s:Session {
-        ulid: $ulid,
-        token: $token
-      }),
-      (d:Device {
-        identifier: $deviceId,
-        displayName: $deviceNameOption,
-        lastSeenIp: $remoteIpAddress,
-        lastSeenAt: datetime()
-      }),
-      (u)-[:AUTHENTICATED_AS]->(s)-[:CONNECTED_FROM]->(d)<-[:OWNS]-(u)
+      CREATE
+        (s:Session {$session}),
+        (d:Device {$device}),
+        (u)-[:AUTHENTICATED_AS]->(s)-[:CONNECTED_FROM]->(d)<-[:OWNS]-(u)
       RETURN count(u)
     """
       .query(ResultMapper.int)
@@ -175,7 +174,7 @@ object SessionStore:
           replyTo ! UserNotFound
         // Is checking the results in such detail unnecessary?
         case Success((_, summary)) if summary.counters.nodesCreated == 2 && summary.counters.relationshipsCreated == 3 =>
-          replyTo ! SessionCreated(ulid, token, deviceId)
+          replyTo ! SessionCreated(sessionId, session.token, device.identifier)
         case Success((_, summary)) =>
           replyTo ! SessionFailed(RuntimeException(s"Created ${summary.counters.nodesCreated} nodes and ${summary.counters.relationshipsCreated} relationships; expected 2 and 3"))
         case Failure(error) =>

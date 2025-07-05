@@ -64,9 +64,13 @@ object UserStore:
    * @param replyTo Actor that receives response
    */
   private def create(name: String, password: String, email: String, replyTo: ActorRef[Response])(implicit driver: AsyncDriver[Future], xc: ExecutionContext): Unit =
-    val encryptedPassword = Auth.argon2Encoder.encode(password)
+    val user = User(
+      name,
+      Auth.argon2Encoder.encode(password),
+      email
+    )
 
-    c"CREATE (u:User { name: $name, encryptedPassword: $encryptedPassword, email: $email }) RETURN u.name"
+    c"CREATE (u:User {$user}) RETURN u.name"
       .query(ResultMapper.string)
       .single(driver)
       .onComplete:
