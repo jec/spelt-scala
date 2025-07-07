@@ -4,7 +4,7 @@ import neotypes.AsyncDriver
 import neotypes.generic.implicits.*
 import neotypes.syntax.all.c
 import net.jcain.spelt.models.User
-import net.jcain.spelt.models.events.MRoomCreate
+import net.jcain.spelt.models.events.{MRoomCreate, MRoomMember, MRoomPowerLevels}
 import net.jcain.spelt.models.requests.CreateRoomRequest
 import org.apache.pekko.actor.typed.scaladsl.Behaviors
 import org.apache.pekko.actor.typed.{ActorRef, Behavior}
@@ -43,31 +43,62 @@ object EventStore extends Logging:
     // Initiate the Futures in the `for` so that they're run sequentially, which is required by the
     // Matrix specification.
     (for
-      e0 <- createRoomCreateEvent(roomId, request, user)
-//        e1 <- createRoomMemberEvent(roomId, request) if e0.counters.nodesCreated > 1
-    yield e0)
+      (s0, id0) <- createRoomCreateEvent(roomId, request, user)
+      (s1, id1) <- createRoomMemberEvent(roomId, request, id0) if s0.counters.nodesCreated == 1
+      (s2, id2) <- createRoomPowerLevelsEvent(roomId, request, id1) if s1.counters.nodesCreated == 1
+    yield (s2,id2))
       .onComplete:
         case Failure(error) =>
           logger.error(error.toString)
           logger.error(error.getStackTrace.mkString("[", ";", "]"))
-          logger.error(error.getCause.toString)
-          logger.error(error.getCause.getStackTrace.mkString("[\n", ";\n", "]"))
+          Option(error.getCause) match {
+            case None =>
+            case Some(cause) =>
+              logger.error(cause.toString)
+              logger.error(cause.getStackTrace.mkString("[\n", ";\n", "]"))
+          }
           replyTo ! CreateEventsForNewRoomResponse(Left(error.getMessage))
-        case Success(rs0) =>
+        case Success(_) =>
           replyTo ! CreateEventsForNewRoomResponse(Right(()))
   }
 
-  private def createRoomCreateEvent(roomId: String, request: CreateRoomRequest, user: User)(implicit driver: AsyncDriver[Future], xc: ExecutionContext) = {
-    val event = MRoomCreate(ULID.newULIDString, ULID.newULIDString, 0)
+  private def createRoomCreateEvent(roomId: String, request: CreateRoomRequest, user: User)(implicit driver: AsyncDriver[Future], xc: ExecutionContext) =
+    val event = MRoomCreate()
 
-    c"""MATCH (r:Room) WHERE r.identifier = $roomId
-        CREATE (e:#${event.label} {$event})-[:SENT_TO]->(r)
-      """
+    c"""
+      MATCH (r:Room) WHERE r.identifier = $roomId
+      CREATE (:#${event.label} {$event})-[:SENT_TO]->(r)
+    """
       .execute
       .resultSummary(driver)
-  }
+      .map(summary => { println(summary.counters); (summary, event.identifier) })
 
-  private def createRoomMemberEvent(roomId: String, request: CreateRoomRequest)(implicit driver: AsyncDriver[Future], xc: ExecutionContext) =
-    c"CREATE"
+  private def createRoomMemberEvent(roomId: String, request: CreateRoomRequest, parentId: String)(implicit driver: AsyncDriver[Future], xc: ExecutionContext) =
+    val event = MRoomMember()
+
+    c"""
+      MATCH (r:Room) WHERE r.identifier = $roomId
+      MATCH (e0:Event) WHERE e0.identifier = $parentId
+      CREATE (e:#${event.label} {$event}),
+        (e)-[:SENT_TO]->(r),
+        (e)-[:CHILD_OF]->(e0)
+      SET e.depth = e0.depth + 1
+    """
       .execute
       .resultSummary(driver)
+      .map(summary => { println(summary.counters); (summary, event.identifier) })
+
+private def createRoomPowerLevelsEvent(roomId: String, request: CreateRoomRequest, parentId: String)(implicit driver: AsyncDriver[Future], xc: ExecutionContext) =
+  val event = MRoomPowerLevels()
+
+  c"""
+    MATCH (r:Room) WHERE r.identifier = $roomId
+    MATCH (e0:Event) WHERE e0.identifier = $parentId
+    CREATE (e:#${event.label} {$event}),
+      (e)-[:SENT_TO]->(r),
+      (e)-[:CHILD_OF]->(e0)
+    SET e.depth = e0.depth + 1
+  """
+    .execute
+    .resultSummary(driver)
+    .map(summary => { println(summary.counters); (summary, event.identifier) })

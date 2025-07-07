@@ -57,16 +57,17 @@ class EventStoreSpec extends ScalaTestWithActorTestKit with AnyWordSpecLike with
         inside(probe.expectMessageType[EventStore.Response]) {
           case EventStore.CreateEventsForNewRoomResponse(Right(())) =>
             val result = Await.result(
-              c"MATCH path = (r:Room)<-[:SENT_TO]-(e:Event) WHERE r.identifier = ${room.identifier} RETURN path"
+              c"MATCH path = (e:Event)-[:SENT_TO]->(r:Room) WHERE r.identifier = ${room.identifier} ORDER BY e.depth RETURN path"
                 .query(ResultMapper.path)
-                .single(driver),
+                .list(driver),
               1.minute)
 
-            println(result.segments.length)
-            val head = result.segments.head
-            println(head.start)
-            println(head.relationship)
-            println(head.end)
+            result.foreach: path =>
+              println(s"(${path.start.labels.mkString(":")})-[:${path.relationships.head.relationshipType}]->(${path.end.labels.head} {name: ${path.end.properties("name")})")
+              val head = path.segments.head
+              println(head.start)
+              println(head.relationship)
+              println(head.end)
 
         }
       }
