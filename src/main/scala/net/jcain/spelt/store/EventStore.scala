@@ -9,7 +9,6 @@ import net.jcain.spelt.models.requests.CreateRoomRequest
 import org.apache.pekko.actor.typed.scaladsl.Behaviors
 import org.apache.pekko.actor.typed.{ActorRef, Behavior}
 import play.api.Logging
-import wvlet.airframe.ulid.ULID
 
 import javax.inject.Inject
 import scala.concurrent.{ExecutionContext, Future}
@@ -49,14 +48,7 @@ object EventStore extends Logging:
     yield (s2,id2))
       .onComplete:
         case Failure(error) =>
-          logger.error(error.toString)
-          logger.error(error.getStackTrace.mkString("[", ";", "]"))
-          Option(error.getCause) match {
-            case None =>
-            case Some(cause) =>
-              logger.error(cause.toString)
-              logger.error(cause.getStackTrace.mkString("[\n", ";\n", "]"))
-          }
+          logError(error)
           replyTo ! CreateEventsForNewRoomResponse(Left(error.getMessage))
         case Success(_) =>
           replyTo ! CreateEventsForNewRoomResponse(Right(()))
@@ -88,17 +80,27 @@ object EventStore extends Logging:
       .resultSummary(driver)
       .map(summary => { println(summary.counters); (summary, event.identifier) })
 
-private def createRoomPowerLevelsEvent(roomId: String, request: CreateRoomRequest, parentId: String)(implicit driver: AsyncDriver[Future], xc: ExecutionContext) =
-  val event = MRoomPowerLevels()
+  private def createRoomPowerLevelsEvent(roomId: String, request: CreateRoomRequest, parentId: String)(implicit driver: AsyncDriver[Future], xc: ExecutionContext) =
+    val event = MRoomPowerLevels()
 
-  c"""
-    MATCH (r:Room) WHERE r.identifier = $roomId
-    MATCH (e0:Event) WHERE e0.identifier = $parentId
-    CREATE (e:#${event.label} {$event}),
-      (e)-[:SENT_TO]->(r),
-      (e)-[:CHILD_OF]->(e0)
-    SET e.depth = e0.depth + 1
-  """
-    .execute
-    .resultSummary(driver)
-    .map(summary => { println(summary.counters); (summary, event.identifier) })
+    c"""
+      MATCH (r:Room) WHERE r.identifier = $roomId
+      MATCH (e0:Event) WHERE e0.identifier = $parentId
+      CREATE (e:#${event.label} {$event}),
+        (e)-[:SENT_TO]->(r),
+        (e)-[:CHILD_OF]->(e0)
+      SET e.depth = e0.depth + 1
+    """
+      .execute
+      .resultSummary(driver)
+      .map(summary => { println(summary.counters); (summary, event.identifier) })
+
+  private def logError(error: Throwable): Unit =
+    logger.error(error.toString)
+    logger.error(error.getStackTrace.mkString("[", ";", "]"))
+    Option(error.getCause) match {
+      case None =>
+      case Some(cause) =>
+        logger.error(cause.toString)
+        logger.error(cause.getStackTrace.mkString("[\n", ";\n", "]"))
+    }
